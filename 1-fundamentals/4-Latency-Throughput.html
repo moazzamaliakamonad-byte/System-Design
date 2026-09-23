@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Latency, Throughput & Performance — System Design Fundamentals</title>
+  <meta name="description" content="Master performance and numbers every software engineer must know. Covers latency vs throughput, RAM vs SSD vs HDD, queueing theory, Little's Law, and tail latency.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efec;
+      --border: #e9e9e7;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .topnav a { color: var(--accent); text-decoration: none; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid;
+    }
+    .badge-beginner { color: var(--success); border-color: var(--success); background: var(--success-light); }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    p:last-child { margin-bottom: 0; }
+    
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .hook-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 24px; margin: 24px 0; font-size: 1.05em;
+    }
+    .hook-box .emoji { font-size: 1.8em; margin-bottom: 8px; display: block; }
+    
+    .toc { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 20px; border-radius: var(--radius); border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    
+    .callout {
+      border-radius: var(--radius); padding: 16px 20px;
+      margin: 20px 0; font-size: 14px; display: flex; gap: 12px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.5; }
+    .callout.info { background: var(--accent-light); border: 1px solid #bfdbfe; }
+    .callout.warning { background: var(--warning-light); border: 1px solid #fde68a; }
+    .callout.tip { background: var(--success-light); border: 1px solid #bbf7d0; }
+    .callout.danger { background: var(--danger-light); border: 1px solid #fecaca; }
+    
+    .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .code-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 16px; background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .code-lang { font-size: 11px; color: #7f849c; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .copy-btn {
+      font-size: 11px; color: #7f849c; background: none;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+      padding: 3px 8px; cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .copy-btn:hover { color: var(--code-text); border-color: rgba(255,255,255,0.3); }
+    .code-content {
+      padding: 20px; font-family: 'JetBrains Mono','Fira Code',monospace;
+      font-size: 13px; line-height: 1.8; overflow-x: auto; color: var(--code-text);
+      margin: 0;
+    }
+    .tok-kw { color: #cba6f7; }
+    .tok-fn { color: #89b4fa; }
+    .tok-str { color: #a6e3a1; }
+    .tok-num { color: #fab387; }
+    .tok-cmt { color: #6c7086; font-style: italic; }
+    .tok-cls { color: #f9e2af; }
+    .tok-op { color: #89dceb; }
+
+    /* Youtuber / Cutaway Meme Style */
+    .meme-box {
+      background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid #a855f7;
+      border-radius: var(--radius-lg); padding: 20px 24px; margin: 32px 0;
+      font-size: 15px; line-height: 1.6; position: relative;
+    }
+    .meme-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #9333ea; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .meme-setup { color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+    .meme-punchline { color: var(--text); font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.1); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
+
+    /* Cards Grid matching user notes */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0; }
+    .metric-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
+    .metric-card.circle { border-radius: 500px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; max-width: 200px; margin: 0 auto; background: var(--bg); border-width: 2px; }
+    .metric-title { font-weight: 700; font-size: 13px; color: var(--text-muted); text-transform: uppercase; }
+    .metric-value { font-size: 1.7em; font-weight: 800; color: var(--accent); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Latency Budget Simulator */
+    .sim-container { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
+    .budget-bar-wrap { width: 100%; height: 24px; background: var(--border); border-radius: 12px; overflow: hidden; display: flex; margin: 20px 0; }
+    .budget-segment { height: 100%; transition: width 0.3s ease; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: white; overflow: hidden; white-space: nowrap; }
+
+    /* Accordion */
+    .accordion { margin: 24px 0; }
+    .accordion-item { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+    .accordion-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; cursor: pointer; background: var(--bg);
+      transition: background 0.15s; user-select: none;
+    }
+    .accordion-header:hover { background: var(--bg-secondary); }
+    .accordion-header h3 { margin: 0; font-size: 15px; }
+    .accordion-icon { color: var(--text-muted); transition: transform 0.25s; font-size: 20px; font-weight: 300; }
+    .accordion-item.open .accordion-icon { transform: rotate(45deg); }
+    .accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .accordion-body-inner { padding: 0 20px 24px; }
+
+    /* Quiz */
+    .quiz-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .quiz-score-display { font-weight: 700; font-size: 1.1em; }
+    .progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 16px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
+    .quiz-q-text { font-weight: 600; font-size: 15px; margin-bottom: 16px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      transition: all 0.15s; background: var(--bg); font-size: 14px;
+      text-align: left; width: 100%; font-family: inherit;
+    }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #15803d; font-weight: 600; }
+    .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option .opt-letter {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .quiz-explanation {
+      margin-top: 12px; padding: 12px 16px; border-radius: var(--radius);
+      font-size: 14px; display: none; line-height: 1.6;
+    }
+    .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
+    .quiz-explanation.correct-exp { background: var(--success-light); color: #15803d; border-left: 3px solid var(--success); }
+    .quiz-explanation.wrong-exp { background: var(--danger-light); color: #b91c1c; border-left: 3px solid var(--danger); }
+
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
+    .footer-nav a {
+      display: flex; align-items: center; gap: 8px; color: var(--accent);
+      text-decoration: none; font-weight: 500; font-size: 14px;
+      padding: 10px 16px; border: 1px solid var(--border);
+      border-radius: var(--radius); transition: all 0.15s;
+    }
+    .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
+    .scroll-top {
+      position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px;
+      background: var(--accent); color: white; border-radius: 50%; border: none;
+      cursor: pointer; font-size: 18px; display: none; align-items: center;
+      justify-content: center; box-shadow: var(--shadow-md); transition: all 0.2s; z-index: 50;
+    }
+    .scroll-top.visible { display: flex; }
+    .scroll-top:hover { transform: translateY(-2px); background: #1d4ed8; }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 2em; }
+      .footer-nav { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">1. Fundamentals</a>
+    <span class="sep">&#8250;</span>
+    <span>Latency, Throughput & Performance</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-topic">Fundamentals</span>
+      <span class="badge badge-beginner">Comprehensive Masterclass</span>
+      <span class="badge badge-time">&#9201; ~30 min read</span>
+    </div>
+    <h1>Latency, Throughput & Performance</h1>
+    <p class="page-subtitle">
+      The absolute numbers every software engineer must memorize. Physics sets the immutable rules of the universe, and software architecture is entirely about respecting the clock cycles of memory, storage, and cross-continental network hops.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="meme-box">
+    <div class="meme-label">&#128269; LOOKS INSIDE</div>
+    <div class="meme-setup">Looks inside an enterprise software app where a single button click triggers 6 sequential synchronous database queries over a cross-region network hop.</div>
+    <div class="meme-punchline">"Why does loading the dashboard take 800ms?" -10,000 aura. 💀</div>
+  </div>
+
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#hardware">Hardware Latency: RAM vs SSD vs HDD</a></li>
+      <li><a href="#network">Network Latency: Same Region vs Cross-Region</a></li>
+      <li><a href="#math">Queueing Theory & Little's Law (L = &lambda; &times; W)</a></li>
+      <li><a href="#tail">Tail Latency & Fan-Out Amplification</a></li>
+      <li><a href="#calculator">Interactive Latency Budget Simulator</a></li>
+      <li><a href="#throughput">Latency vs Throughput (The Highway Analogy)</a></li>
+      <li><a href="#code">Python Code: Benchmarking Latency & Percentiles</a></li>
+      <li><a href="#quiz">Quiz &#129514;</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: HARDWARE LATENCY -->
+<section id="hardware">
+  <div class="container">
+    <p class="section-label">Hardware Speeds</p>
+    <h2>Memory and Storage Latency Hierarchy</h2>
+    <p>When designing high-performance systems, understanding where your data lives dictates your application's speed ceiling. Fetching data from disk instead of RAM introduces orders-of-magnitude delays.</p>
+
+    <div class="metric-grid">
+      <div class="metric-card circle">
+        <div class="metric-title">RAM Lookup</div>
+        <div class="metric-value">100ns</div>
+      </div>
+      <div class="metric-card circle">
+        <div class="metric-title">SSD Read</div>
+        <div class="metric-value">.1–.2ms</div>
+      </div>
+      <div class="metric-card circle">
+        <div class="metric-title">HDD Read</div>
+        <div class="metric-value">1–2ms</div>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div><strong>The Orders of Magnitude Gap:</strong> 1 millisecond (ms) equals <em>1,000,000 nanoseconds (ns)</em>. Fetching data from a spinning Hard Disk Drive (HDD) is roughly <strong>20,000 times slower</strong> than reading it from RAM. This physical constraint is the exact reason why caching layers like Redis and Memcached are mandatory in large-scale system design.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: NETWORK LATENCY -->
+<section id="network">
+  <div class="container">
+    <p class="section-label">Network Physics</p>
+    <h2>Same-Region vs. Cross-Region Hops</h2>
+    <p>Storage is fast; traveling across the earth's fiber optic cables is strictly limited by the speed of light in glass (~200,000 km/s). Network topology is often the most stubborn bottleneck in cloud architecture.</p>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-title">Same Region / AZ</div>
+        <div class="metric-value" style="color:var(--success);">1 – 10 ms</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">Data centers located in the same geographic availability zone cluster.</p>
+      </div>
+      <div class="metric-card">
+        <div class="metric-title">Cross-Region (e.g. US-East to West)</div>
+        <div class="metric-value" style="color:var(--danger);">~50 ms</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">Transcontinental fiber optic round-trip time limitation.</p>
+      </div>
+    </div>
+
+    <div class="meme-box" style="margin-top:24px;">
+      <div class="meme-label">&#128640; SPEED OF LIGHT LIMITATION</div>
+      <div class="meme-setup">Junior dev asking why a database sync between Virginia (`us-east-1`) and Oregon (`us-west-2`) takes 60ms.</div>
+      <div class="meme-punchline">Albert Einstein: "Bro, photons can only move so fast through glass fiber." 📉</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: QUEUEING THEORY & LITTLE'S LAW -->
+<section id="math">
+  <div class="container">
+    <p class="section-label">System Design Mathematics</p>
+    <h2>Queueing Theory & Little's Law</h2>
+    <p>In high-throughput environments, performance degradation isn't just about single-request speed—it’s about queueing. This is mathematically governed by <strong>Little's Law</strong>:</p>
+
+    <div class="callout info" style="font-size: 1.2em; justify-content: center; text-align: center; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
+      <div>L = &lambda; &times; W</div>
+    </div>
+
+    <p>Where:</p>
+    <ul style="padding-left: 20px; margin-bottom: 24px;">
+      <li><strong>L (Items in System):</strong> The average number of requests currently being processed or waiting in queue.</li>
+      <li><strong>&lambda; (Arrival Rate):</strong> The rate at which incoming requests arrive per second.</li>
+      <li><strong>W (Wait Time / Latency):</strong> The average time a request spends in the system.</li>
+    </ul>
+
+    <p><strong>The Takeaway:</strong> As your system approaches saturation (&lambda; increases close to maximum capacity), wait time (W) does not increase linearly—it explodes exponentially because requests begin piling up in backlog queues.</p>
+  </div>
+</section>
+
+<!-- SECTION 4: TAIL LATENCY -->
+<section id="tail">
+  <div class="container">
+    <p class="section-label">Reliability Engineering</p>
+    <h2>Tail Latency & Fan-Out Amplification</h2>
+    <p>When measuring system performance, looking at <em>average</em> latency is a trap. You must measure percentiles: **P95, P99, and P99.9**.</p>
+
+    <div class="accordion">
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128200; The Fan-Out Problem (Why P99 Matters)</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Imagine a frontend service that fans out a single user request to <strong>100 downstream microservices</strong> in parallel. If each individual service has a 99% reliability/speed success rate (P99 = 10ms), what is the overall success rate of the parent request?</p>
+          <p style="margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600;">Probability = 0.99^100 &approx; 36.6%</p>
+          <p style="margin-top: 12px;">This means **over 63% of user requests will experience a latency spike or failure** because they are bottlenecked by the single slowest sub-request! This is why large systems implement hedging requests, timeouts, and fallback caches.</p>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: LATENCY BUDGET SIMULATOR -->
+<section id="calculator">
+  <div class="container">
+    <p class="section-label">Interactive Simulator</p>
+    <h2>The Latency Budget Calculator</h2>
+    <p>Users expect web applications to respond in under <strong>200ms</strong>. Assemble your request path below and see if you bust the latency budget.</p>
+
+    <div class="sim-container">
+      <h3 style="margin-bottom:16px;">&#9201; Request Pipeline Builder</h3>
+      
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px;">
+        <button class="btn btn-secondary" onclick="addStep('Client-Proxy', 5)">+ Edge Proxy (5ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('RAM Cache', 1)">+ Redis Cache (1ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('Same-Region DB', 10)">+ Local DB Query (10ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('Cross-Region DB', 50)">+ Cross-Region DB (50ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('External API', 120)">+ Third-Party API (120ms)</button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; font-weight:700; font-size:14px;">
+        <span>Total Latency: <span id="total-latency" style="color:var(--accent);">0</span> ms</span>
+        <span>SLA Budget: 200 ms</span>
+        <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="resetBudget()">Reset</button>
+      </div>
+
+      <div class="budget-bar-wrap" id="budget-bar">
+        <div style="width:100%; display:grid; place-items:center; font-size:12px; color:var(--text-muted); font-weight:600;">Empty Pipeline</div>
+      </div>
+
+      <div id="budget-status" style="font-weight:700; text-align:center; margin-top:12px; font-size:14px; color:var(--success);">
+        Status: Within SLA Limits &#10003;
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: THROUGHPUT VS LATENCY -->
+<section id="throughput">
+  <div class="container">
+    <p class="section-label">Theory</p>
+    <h2>Latency vs. Throughput</h2>
+    <p>People often confuse these two terms, but they measure completely different properties of a computing system:</p>
+    
+    <div class="callout info">
+      <span class="callout-icon">&#128641;</span>
+      <div>
+        <strong>Latency:</strong> How long a <em>single</em> request takes from start to finish (measured in milliseconds). 
+        <br><br>
+        <strong>Throughput:</strong> How many requests your system can process <em>simultaneously</em> per second (measured in requests per second).
+      </div>
+    </div>
+
+    <p><strong>The Highway Analogy:</strong> Latency is the speed limit (how fast one car gets from City A to City B). Throughput is the number of lanes on the highway (how many cars can travel simultaneously). You can have low latency (a fast sports car) but low throughput (a one-lane dirt road), or high latency (a massive cargo ship) with extreme overall throughput!</p>
+  </div>
+</section>
+
+<!-- SECTION 7: CODE -->
+<section id="code">
+  <div class="container">
+    <p class="section-label">Show Me the Code</p>
+    <h2>Python Latency Benchmarker</h2>
+    <p>A production-ready Python utility to measure execution latency and track tail percentiles (p95, p99) for microservice monitoring.</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre class="code-content" data-code>
+<span class="tok-kw">import</span> time
+<span class="tok-kw">import</span> statistics
+<span class="tok-kw">import</span> random
+
+<span class="tok-kw">def</span> <span class="tok-fn">simulate_db_call</span>():
+    <span class="tok-cmt"># Simulate network / disk latency variance</span>
+    time.<span class="tok-fn">sleep</span>(random.<span class="tok-fn">uniform</span>(<span class="tok-num">0.005</span>, <span class="tok-num">0.035</span>))
+
+<span class="tok-kw">def</span> <span class="tok-fn">benchmark</span>(iterations=<span class="tok-num">200</span>):
+    latencies = []
+    <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-cls">range</span>(iterations):
+        start = time.<span class="tok-fn">perf_counter</span>()
+        <span class="tok-fn">simulate_db_call</span>()
+        duration_ms = (time.<span class="tok-fn">perf_counter</span>() - start) * <span class="tok-num">1000</span>
+        latencies.<span class="tok-fn">append</span>(duration_ms)
+
+    p95 = statistics.<span class="tok-fn">quantiles</span>(latencies, n=<span class="tok-num">20</span>)[<span class="tok-num">18</span>]
+    p99 = statistics.<span class="tok-fn">quantiles</span>(latencies, n=<span class="tok-num">100</span>)[<span class="tok-num">98</span>]
+
+    <span class="tok-fn">print</span>(<span class="tok-str">f"Average Latency: {statistics.mean(latencies):.2f} ms"</span>)
+    <span class="tok-fn">print</span>(<span class="tok-str">f"P95 Latency: {p95:.2f} ms"</span>)
+    <span class="tok-fn">print</span>(<span class="tok-str">f"P99 Latency: {p99:.2f} ms"</span>)
+
+<span class="tok-kw">if</span> __name__ == <span class="tok-str">"__main__"</span>:
+    <span class="tok-fn">benchmark</span>()</pre>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: QUIZ -->
+<section id="quiz">
+  <div class="container">
+    <p class="section-label">Test Yourself</p>
+    <h2>Quiz Time &#129514;</h2>
+
+    <div class="quiz-progress">
+      <span id="quiz-score-text" class="quiz-score-display">0 / 4</span>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="quiz-progress-bar" style="width:0%"></div></div>
+      <span id="quiz-q-num" style="font-size:13px;color:var(--text-muted);">0 of 4 answered</span>
+    </div>
+
+    <div class="quiz">
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. Roughly how much slower is a hard disk drive (HDD) lookup compared to a RAM lookup?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">A</span> About 2 times slower</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">B</span> About 50 times slower</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">C</span> About 20,000 times slower</button>
+        </div>
+        <div class="quiz-explanation" id="exp-1">
+          &#10003; <strong>20,000x slower.</strong> RAM takes ~100ns, while an HDD takes ~1-2ms (1,000,000+ ns). This massive gap is why caching layers are vital.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. According to Little's Law (L = &lambda; &times; W), what happens to wait time (W) when arrival rate (&lambda;) approaches system saturation limits?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">A</span> Wait time drops to zero.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">B</span> Wait time increases exponentially as backlogs pile up in queues.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">C</span> Wait time remains strictly linear.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-2">
+          &#10003; <strong>Exponential queueing growth.</strong> As saturation hits, requests back up in queues, causing latency to spike drastically.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Why do system architects care about P99 tail latency instead of just looking at Average latency?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> Average latency is illegal to report.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">B</span> Average latency hides painful outliers and tail-end spikes experienced by real users.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">C</span> P99 is always zero.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-3">
+          &#10003; <strong>Hiding outliers.</strong> Averages smooth out severe performance degradation affecting a minority of requests. P99 exposes those outliers.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">4. What is the fundamental difference between Latency and Throughput?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">A</span> Latency measures bandwidth while throughput measures time.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,4)"><span class="opt-letter">B</span> Latency is the time a single request takes; throughput is the number of requests handled per second.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">C</span> They are identical terms.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-4">
+          &#10003; <strong>Time vs Volume.</strong> Latency is duration (ms), while throughput is capacity (req/sec).
+        </div>
+      </div>
+    </div>
+
+    <div id="quiz-final" style="display:none;" class="callout tip">
+      <span class="callout-icon">&#127881;</span>
+      <div id="quiz-final-text"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="meme-box" style="text-align:center;">
+      <div class="meme-label" style="justify-content:center;">&#128187; END OF FUNDAMENTALS</div>
+      <div class="meme-setup">Me optimizing a loop from O(N) to O(1) to save 0.001ms while our unindexed database query takes 450ms:</div>
+      <div class="meme-punchline" style="margin-top:8px;">"Performance engineer mastermind." 🧠</div>
+    </div>
+    <div class="footer-nav">
+      <a href="2-Scalability.html">&#8592; Scalability</a>
+      <a href="../networking/1-Protocols.html">Networking Protocols &#8594;</a>
+    </div>
+  </div>
+</footer>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">&#8593;</button>
+
+<script>
+// --- UI Helpers ---
+function toggleAccordion(item) {
+  const body = item.querySelector('.accordion-body');
+  const inner = item.querySelector('.accordion-body-inner');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.accordion-item').forEach(i => {
+    if(i !== item) {
+      i.classList.remove('open');
+      i.querySelector('.accordion-body').style.maxHeight = '0';
+    }
+  });
+  if (!isOpen) {
+    item.classList.add('open');
+    setTimeout(() => { body.style.maxHeight = inner.scrollHeight + 50 + 'px'; }, 10);
+  } else {
+    item.classList.remove('open');
+    body.style.maxHeight = '0';
+  }
+}
+
+// --- Latency Budget Simulator ---
+let pipelineSteps = [];
+const colors = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#9333ea'];
+
+function addStep(name, ms) {
+  pipelineSteps.push({ name, ms });
+  renderBudget();
+}
+
+function resetBudget() {
+  pipelineSteps = [];
+  renderBudget();
+}
+
+function renderBudget() {
+  const bar = document.getElementById('budget-bar');
+  const totalEl = document.getElementById('total-latency');
+  const statusEl = document.getElementById('budget-status');
+  
+  const total = pipelineSteps.reduce((acc, curr) => acc + curr.ms, 0);
+  totalEl.textContent = total;
+
+  if (pipelineSteps.length === 0) {
+    bar.innerHTML = '<div style="width:100%; display:grid; place-items:center; font-size:12px; color:var(--text-muted); font-weight:600;">Empty Pipeline</div>';
+    statusEl.innerHTML = 'Status: Within SLA Limits ✓';
+    statusEl.style.color = 'var(--success)';
+    return;
+  }
+
+  bar.innerHTML = '';
+  pipelineSteps.forEach((step, idx) => {
+    const pct = Math.max(8, (step.ms / Math.max(200, total)) * 100);
+    const seg = document.createElement('div');
+    seg.className = 'budget-segment';
+    seg.style.width = pct + '%';
+    seg.style.backgroundColor = colors[idx % colors.length];
+    seg.title = `${step.name}: ${step.ms}ms`;
+    seg.textContent = `${step.ms}ms`;
+    bar.appendChild(seg);
+  });
+
+  if (total > 200) {
+    statusEl.innerHTML = 'Status: SLA BREACHED (>200ms)! Users will bounce 🚨';
+    statusEl.style.color = 'var(--danger)';
+  } else {
+    statusEl.innerHTML = 'Status: Within SLA Limits ✓';
+    statusEl.style.color = 'var(--success)';
+  }
+}
+
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('[data-code]');
+  navigator.clipboard.writeText(code.innerText || code.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// --- Quiz Logic ---
+let quizScore = 0, questionsAnswered = 0;
+
+function checkAnswer(btn, isCorrect, qNum) {
+  const q = btn.closest('.quiz-question');
+  if (q.querySelector('.correct')) return;
+  questionsAnswered++;
+  q.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+  if (isCorrect) {
+    btn.classList.add('correct');
+    quizScore++;
+  } else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (o.getAttribute('onclick') && o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  const exp = document.getElementById('exp-' + qNum);
+  exp.classList.add('show', isCorrect ? 'correct-exp' : 'wrong-exp');
+  document.getElementById('quiz-score-text').textContent = quizScore + ' / 4';
+  document.getElementById('quiz-q-num').textContent = questionsAnswered + ' of 4 answered';
+  document.getElementById('quiz-progress-bar').style.width = (questionsAnswered / 4 * 100) + '%';
+
+  if (questionsAnswered === 4) {
+    const final = document.getElementById('quiz-final');
+    const finalText = document.getElementById('quiz-final-text');
+    final.style.display = 'flex';
+    const msgs = [
+      'Rough start. Re-read the hardware and network numbers.',
+      'Decent attempt! A couple of gaps to fill in regarding queueing theory and percentiles.',
+      'Solid! You clearly understand performance constraints.',
+      'Perfect score! You understand hardware and network latency at a master level. Ship it.'
+    ];
+    finalText.innerHTML = '<strong>' + quizScore + '/4 &#8212;</strong> ' + msgs[quizScore];
+    final.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// Scroll top
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-top').classList.toggle('visible', window.scrollY > 400);
+});
+</script>
+</body>
+</html>

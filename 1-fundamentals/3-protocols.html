@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Networking & Protocols — System Design</title>
+  <meta name="description" content="Master networking fundamentals for system design. Covers the OSI model, TCP vs UDP, DNS resolution, REST vs GraphQL vs gRPC, and WebSockets.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efec;
+      --border: #e9e9e7;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .topnav a { color: var(--accent); text-decoration: none; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid;
+    }
+    .badge-beginner { color: var(--success); border-color: var(--success); background: var(--success-light); }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    p:last-child { margin-bottom: 0; }
+    
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .hook-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 24px; margin: 24px 0; font-size: 1.05em;
+    }
+    .hook-box .emoji { font-size: 1.8em; margin-bottom: 8px; display: block; }
+    
+    .toc { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    
+    .tabs { margin: 32px 0; }
+    .tab-list {
+      display: flex; gap: 4px; border-bottom: 2px solid var(--border);
+      overflow-x: auto; padding-bottom: 0;
+    }
+    .tab-btn {
+      padding: 10px 18px; border: none; background: none; cursor: pointer;
+      font-size: 14px; font-weight: 500; color: var(--text-muted);
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: all 0.2s; white-space: nowrap;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--bg-secondary); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-panel {
+      display: none;
+      border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      padding: 32px; background: var(--bg);
+    }
+    .tab-panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 20px; border-radius: var(--radius); border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    
+    .callout {
+      border-radius: var(--radius); padding: 16px 20px;
+      margin: 20px 0; font-size: 14px; display: flex; gap: 12px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.5; }
+    .callout.info { background: var(--accent-light); border: 1px solid #bfdbfe; }
+    .callout.warning { background: var(--warning-light); border: 1px solid #fde68a; }
+    .callout.tip { background: var(--success-light); border: 1px solid #bbf7d0; }
+    .callout.danger { background: var(--danger-light); border: 1px solid #fecaca; }
+    
+    .accordion { margin: 24px 0; }
+    .accordion-item { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+    .accordion-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; cursor: pointer; background: var(--bg);
+      transition: background 0.15s; user-select: none;
+    }
+    .accordion-header:hover { background: var(--bg-secondary); }
+    .accordion-header h3 { margin: 0; font-size: 15px; }
+    .accordion-icon { color: var(--text-muted); transition: transform 0.25s; font-size: 20px; font-weight: 300; }
+    .accordion-item.open .accordion-icon { transform: rotate(45deg); }
+    .accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .accordion-body-inner { padding: 0 20px 24px; }
+    
+    .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .code-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 16px; background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .code-lang { font-size: 11px; color: #7f849c; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .copy-btn {
+      font-size: 11px; color: #7f849c; background: none;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+      padding: 3px 8px; cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .copy-btn:hover { color: var(--code-text); border-color: rgba(255,255,255,0.3); }
+    .code-content {
+      padding: 20px; font-family: 'JetBrains Mono','Fira Code',monospace;
+      font-size: 13px; line-height: 1.8; overflow-x: auto; color: var(--code-text);
+      margin: 0;
+    }
+    .tok-kw { color: #cba6f7; }
+    .tok-fn { color: #89b4fa; }
+    .tok-str { color: #a6e3a1; }
+    .tok-num { color: #fab387; }
+    .tok-cmt { color: #6c7086; font-style: italic; }
+    .tok-cls { color: #f9e2af; }
+    .tok-op { color: #89dceb; }
+
+    /* Youtuber / Cutaway Meme Style */
+    .meme-box {
+      background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid #a855f7;
+      border-radius: var(--radius-lg); padding: 20px 24px; margin: 32px 0;
+      font-size: 15px; line-height: 1.6; position: relative;
+    }
+    .meme-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #9333ea; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .meme-setup { color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+    .meme-punchline { color: var(--text); font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.1); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
+
+    /* OSI Layers Visualizer */
+    .osi-container { display: flex; flex-direction: column-reverse; gap: 4px; margin: 32px auto; max-width: 400px; }
+    .osi-layer {
+      border: 2px solid var(--text); border-radius: 8px; padding: 12px 16px;
+      text-align: center; font-weight: 700; font-size: 14px;
+      cursor: pointer; transition: all 0.2s; background: var(--bg);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .osi-layer:hover { transform: scale(1.02); }
+    .osi-layer.active { box-shadow: 0 0 0 4px var(--accent-light); border-color: var(--accent); }
+    .osi-layer .l-num { color: var(--text-muted); font-size: 12px; font-weight: 600; }
+    
+    .l7 { background: #bfdbfe; }
+    .l6, .l5, .l2, .l1 { background: #ffffff; }
+    .l4 { background: #bbf7d0; }
+    .l3 { background: #fecaca; }
+    
+    .osi-details { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 16px; display: none; }
+    .osi-details.show { display: block; animation: fadeIn 0.3s ease; }
+    .osi-tag { display: inline-block; padding: 2px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: monospace; margin: 4px 4px 0 0; }
+
+    /* TCP vs UDP Simulator */
+    .sim-container { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
+    .net-track { display: flex; justify-content: space-between; align-items: center; position: relative; height: 80px; border-bottom: 2px dashed var(--border); margin-bottom: 32px; }
+    .net-endpoint { width: 60px; height: 60px; background: var(--bg); border: 2px solid var(--text); border-radius: 8px; display: grid; place-items: center; font-weight: 700; z-index: 2; position: relative; }
+    .net-packet { position: absolute; top: 20px; left: 60px; padding: 4px 8px; background: var(--accent); color: white; border-radius: 4px; font-size: 11px; font-weight: 700; opacity: 0; transition: left 1s linear, opacity 0.2s; z-index: 1; }
+    .net-packet.udp { background: var(--warning); transition: left 0.5s linear, opacity 0.2s; }
+    .net-packet.udp.dropped { opacity: 0 !important; top: 50px; transform: rotate(45deg); transition: all 0.5s linear; }
+
+    /* Quiz */
+    .quiz-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .quiz-score-display { font-weight: 700; font-size: 1.1em; }
+    .progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 16px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
+    .quiz-q-text { font-weight: 600; font-size: 15px; margin-bottom: 16px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      transition: all 0.15s; background: var(--bg); font-size: 14px;
+      text-align: left; width: 100%; font-family: inherit;
+    }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #15803d; font-weight: 600; }
+    .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option .opt-letter {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .quiz-explanation {
+      margin-top: 12px; padding: 12px 16px; border-radius: var(--radius);
+      font-size: 14px; display: none; line-height: 1.6;
+    }
+    .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
+    .quiz-explanation.correct-exp { background: var(--success-light); color: #15803d; border-left: 3px solid var(--success); }
+    .quiz-explanation.wrong-exp { background: var(--danger-light); color: #b91c1c; border-left: 3px solid var(--danger); }
+    
+    .rw-item {
+      border-left: 3px solid var(--accent); padding: 14px 20px;
+      margin: 12px 0; background: var(--bg-secondary);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
+    .footer-nav a {
+      display: flex; align-items: center; gap: 8px; color: var(--accent);
+      text-decoration: none; font-weight: 500; font-size: 14px;
+      padding: 10px 16px; border: 1px solid var(--border);
+      border-radius: var(--radius); transition: all 0.15s;
+    }
+    .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
+    .scroll-top {
+      position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px;
+      background: var(--accent); color: white; border-radius: 50%; border: none;
+      cursor: pointer; font-size: 18px; display: none; align-items: center;
+      justify-content: center; box-shadow: var(--shadow-md); transition: all 0.2s; z-index: 50;
+    }
+    .scroll-top.visible { display: flex; }
+    .scroll-top:hover { transform: translateY(-2px); background: #1d4ed8; }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 2em; }
+      .footer-nav { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">2. Networking</a>
+    <span class="sep">&#8250;</span>
+    <span>Protocols & Layers</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-topic">Networking</span>
+      <span class="badge badge-beginner">Interactive Lesson</span>
+      <span class="badge badge-time">&#9201; ~30 min read</span>
+    </div>
+    <h1>Networking & Protocols</h1>
+    <p class="page-subtitle">
+      How computers actually talk to each other. From firing blind packets across the globe to establishing secure, persistent, real-time data streams.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="meme-box">
+    <div class="meme-label">&#128269; LOOKS INSIDE</div>
+    <div class="meme-setup">Looks inside "Critical Microservice Unreachable - Production Down" alert.</div>
+    <div class="meme-punchline">It's a DNS configuration typo in Route53. -10,000 aura. 💀</div>
+  </div>
+
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#hook">The Postal Service Analogy</a></li>
+      <li><a href="#osi">The OSI Model (Interactive)</a></li>
+      <li><a href="#transport">Layer 4: TCP vs UDP (Simulation)</a></li>
+      <li><a href="#application">Layer 7: APIs & Real-Time</a></li>
+      <li><a href="#deep-dive">Deep Dives: Request Lifecycle & ACLs</a></li>
+      <li><a href="#code">Code: Building a WebSocket Server</a></li>
+      <li><a href="#real-world">Real World: Netflix, Discord, Multiplayer Games</a></li>
+      <li><a href="#quiz">Quiz &#129514;</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: HOOK -->
+<section id="hook">
+  <div class="container">
+    <p class="section-label">The Foundation</p>
+    <h2>It's Just the Postal Service</h2>
+    <div class="hook-box">
+      <span class="emoji">&#128230;</span>
+      <strong>Analogy time.</strong> If you want to send a letter, you don't build the roads, drive the truck, or fly the plane. You just write the letter (Application), put it in an envelope (Transport), write the address on it (Network), and drop it in a mailbox. 
+      <br><br>
+      The internet works exactly the same way through <strong>layered abstractions</strong>. Your web browser doesn't know how to encode electrical signals into a fiber optic cable, and the fiber optic cable doesn't care that you're sending a JSON payload of cat pictures.
+    </div>
+    <p>We organize these layers using a conceptual framework called the <strong>OSI Model</strong>. While modern networking technically uses the simpler TCP/IP model, the OSI terminology is universally used in system design interviews and industry jargon.</p>
+  </div>
+</section>
+
+<!-- SECTION 2: OSI MODEL -->
+<section id="osi">
+  <div class="container">
+    <p class="section-label">The Stack</p>
+    <h2>The OSI Model (The 7 Layers)</h2>
+    <p>Click on the highlighted layers (3, 4, and 7) to reveal what actually happens at that level in a modern web architecture.</p>
+
+    <div class="osi-container" id="osi-stack">
+      <div class="osi-layer l1" data-layer="1"><span>Physical Layer</span> <span class="l-num">L1</span></div>
+      <div class="osi-layer l2" data-layer="2"><span>Data Link Layer</span> <span class="l-num">L2</span></div>
+      <div class="osi-layer l3" data-layer="3" onclick="showOsi(3)"><span>Network Layer</span> <span class="l-num">L3 (Click to inspect)</span></div>
+      <div class="osi-layer l4" data-layer="4" onclick="showOsi(4)"><span>Transport Layer</span> <span class="l-num">L4 (Click to inspect)</span></div>
+      <div class="osi-layer l5" data-layer="5"><span>Session Layer</span> <span class="l-num">L5</span></div>
+      <div class="osi-layer l6" data-layer="6"><span>Presentation Layer</span> <span class="l-num">L6</span></div>
+      <div class="osi-layer l7" data-layer="7" onclick="showOsi(7)"><span>Application Layer</span> <span class="l-num">L7 (Click to inspect)</span></div>
+    </div>
+
+    <div class="osi-details" id="osi-details">
+      <h3 id="osi-title">Click a highlighted layer above</h3>
+      <p id="osi-desc">The hardware (L1/L2) and abstract layers (L5/L6) are mostly handled by your OS and network interface cards. As a software engineer, you will spend 99% of your time working in L3, L4, and L7.</p>
+      <div id="osi-tags"></div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: TRANSPORT (TCP vs UDP) -->
+<section id="transport">
+  <div class="container">
+    <p class="section-label">Layer 4 Interactive Demo</p>
+    <h2>Transport: TCP vs UDP</h2>
+    <p>Once you have an IP address, how do you actually move the bits? You have two choices: a rigorous phone call (TCP) or firing a t-shirt cannon into a crowd (UDP).</p>
+
+    <div class="meme-box">
+      <div class="meme-label">&#128225; TCP EXPLAINING TO UDP</div>
+      <div class="meme-setup">TCP: "Bro you can't just throw packets at the client without checking if they received the last one! What about packet loss? What about congestion control? What about ordering??"</div>
+      <div class="meme-punchline">UDP: "I ain't reading all that. Good for you tho. Or sorry that happened."</div>
+    </div>
+
+    <div class="sim-container">
+      <h3 style="text-align:center; margin-bottom:8px;">TCP vs UDP Packet Race</h3>
+      <div style="text-align:center; margin-bottom: 24px;">
+        <button class="btn btn-primary" onclick="runTCP()">Run TCP (Reliable)</button>
+        <button class="btn btn-warning" onclick="runUDP()">Run UDP (Fast/Lossy)</button>
+      </div>
+
+      <!-- TCP Track -->
+      <div class="net-track" id="track-tcp">
+        <div class="net-endpoint">Client</div>
+        <div class="net-packet" id="pkt-tcp">SYN</div>
+        <div class="net-endpoint" style="background:#bfdbfe;">Server</div>
+      </div>
+
+      <!-- UDP Track -->
+      <div class="net-track" id="track-udp" style="border-bottom:none; margin-bottom:0;">
+        <div class="net-endpoint">Client</div>
+        <div class="net-packet udp" id="pkt-udp1">DATA 1</div>
+        <div class="net-packet udp" id="pkt-udp2" style="transition-delay:0.2s;">DATA 2</div>
+        <div class="net-packet udp" id="pkt-udp3" style="transition-delay:0.4s;">DATA 3</div>
+        <div class="net-endpoint" style="background:#fecaca;">Server</div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab-list" role="tablist">
+        <button class="tab-btn active" role="tab" onclick="switchTab(this,'tcp')">TCP (Transmission Control Protocol)</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(this,'udp')">UDP (User Datagram Protocol)</button>
+      </div>
+
+      <div id="tab-tcp" class="tab-panel active">
+        <p><strong>Connection-oriented and reliable.</strong> Before sending data, TCP performs a "3-way handshake" (SYN, SYN-ACK, ACK) to establish a connection. It guarantees that packets arrive in order, and if a packet drops, it will retransmit it.</p>
+        <div class="callout tip">
+          <span class="callout-icon">&#10003;</span>
+          <div><strong>Use Cases:</strong> HTTP/HTTPS (web browsing), File Transfers (FTP), Email (SMTP), Text chat. Anywhere that missing a single piece of data ruins the entire payload.</div>
+        </div>
+      </div>
+
+      <div id="tab-udp" class="tab-panel">
+        <p><strong>Connectionless and fast.</strong> UDP just starts firing packets at the IP address. No handshake. No ordering guarantees. If a packet drops over the network, it is gone forever. It is lighter, faster, and has zero setup latency.</p>
+        <div class="callout warning">
+          <span class="callout-icon">&#9888;&#65039;</span>
+          <div><strong>Use Cases:</strong> Video streaming, Voice/VoIP calls, Multiplayer gaming. If you drop a frame of video in a live call, you don't want the network to pause and wait for it—you just want to render the *next* frame immediately.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: APPLICATION (L7) -->
+<section id="application">
+  <div class="container">
+    <p class="section-label">Layer 7</p>
+    <h2>Application Layer (APIs & Real-Time)</h2>
+    <p>This is where software engineers live. Layer 7 is about how we format the data inside the TCP/UDP packets so the receiving application understands it.</p>
+
+    <h3>1. DNS (Domain Name System)</h3>
+    <p>Computers route traffic using IP addresses (e.g., <code>142.250.190.46</code>). Humans use names (e.g., <code>google.com</code>). DNS is the distributed phonebook of the internet that translates names to IPs.</p>
+    
+    <h3>2. API Paradigms</h3>
+    <div class="accordion">
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>REST (Representational State Transfer)</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>The standard of the web. Uses HTTP verbs (GET, POST, PUT, DELETE) on resource-based URLs (<code>/users/123/orders</code>). <strong>RESTful Semantics</strong> dictate that GET is idempotent (safe to retry), while POST creates new state.</p>
+        </div></div>
+      </div>
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>GraphQL</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Instead of hitting multiple REST endpoints, the client sends a single query describing exactly the shape of the data it wants. Fixes the "over-fetching" and "under-fetching" problems of REST, but makes caching much harder.</p>
+          <div class="meme-box" style="margin: 12px 0;">
+            <div class="meme-label">&#128128; FRONTEND DEVS BE LIKE</div>
+            <div class="meme-setup">Frontend dev asking the REST API for just the user's avatar URL.</div>
+            <div class="meme-setup">The API returning a 4.2MB JSON payload containing the user's avatar, entire purchase history, social security number, and zodiac sign.</div>
+            <div class="meme-punchline">"Chat, is this optimized?"</div>
+          </div>
+        </div></div>
+      </div>
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>gRPC</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Developed by Google. Instead of human-readable JSON, it uses Protocol Buffers (binary). Extremely fast, strongly typed, and uses HTTP/2 multiplexing natively. Highly favored for internal microservice-to-microservice communication.</p>
+        </div></div>
+      </div>
+    </div>
+
+    <h3>3. Real-Time Communication</h3>
+    <p>HTTP is strictly request-response. If you want a real-time chat app, polling the server every 1 second (<code>GET /new-messages</code>) is incredibly inefficient. We use two alternatives:</p>
+    <ul style="padding-left: 20px; margin-bottom: 24px;">
+      <li><strong>SSE (Server-Sent Events):</strong> A persistent, one-way HTTP connection. The client opens the connection, and the server pushes data down it (great for live sports scores or stock tickers).</li>
+      <li><strong>WebSockets:</strong> A full-duplex, persistent TCP connection. Both the client and server can send messages to each other at any time asynchronously (essential for chat apps and multiplayer games).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- SECTION 5: DEEP DIVES (EXPANDED) -->
+<section id="deep-dive">
+  <div class="container">
+    <p class="section-label">Going Deeper</p>
+    <h2>Request Lifecycle & Security</h2>
+
+    <div class="accordion">
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128269; Request Lifecycle: What happens when you type google.com?</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>This is arguably the most common system design interview icebreaker. It demonstrates your understanding of the entire stack. Here is the exact sequence, down to the packets:</p>
+          
+          <ol style="padding-left: 20px; margin-top: 16px;">
+            <li><strong>DNS Resolution (UDP Port 53):</strong> 
+              <br>The browser needs the IP address. It checks its local cache -> OS cache -> Router cache -> ISP DNS Resolver. If all fail, a recursive lookup occurs: 
+              <em>Root Server</em> -> <em>.com TLD Server</em> -> <em>Google's Authoritative Server</em>.
+              <div class="code-block" style="margin: 12px 0;">
+                <div class="code-header"><span class="code-lang">Terminal</span></div>
+                <pre class="code-content" style="padding: 12px;"><span class="tok-cmt">$ dig +short google.com</span>
+<span class="tok-num">142.250.190.46</span></pre>
+              </div>
+            </li>
+            
+            <li><strong>TCP Handshake (Layer 4):</strong> 
+              <br>Before sending data, a reliable connection must be established. This takes 1.5 Round Trip Times (RTT).
+              <ul style="padding-left: 20px; margin-top: 8px;">
+                <li>Client sends <code>SYN</code> (Synchronize)</li>
+                <li>Server responds with <code>SYN-ACK</code> (Synchronize-Acknowledge)</li>
+                <li>Client responds with <code>ACK</code> (Acknowledge)</li>
+              </ul>
+            </li>
+
+            <li><strong>TLS Handshake (HTTPS Security):</strong> 
+              <br>The client and server negotiate encryption algorithms (Cipher Suites), exchange certificates, and establish a symmetric session key. This adds another 1 to 2 RTTs of latency before a single byte of HTTP data is sent.
+            </li>
+
+            <li><strong>HTTP Request (Layer 7):</strong> 
+              <br>The client finally sends the actual encrypted payload over the established connection.
+              <div class="code-block" style="margin: 12px 0;">
+                <div class="code-header"><span class="code-lang">Raw HTTP Header</span></div>
+                <pre class="code-content" style="padding: 12px;"><span class="tok-kw">GET</span> / <span class="tok-kw">HTTP/1.1</span>
+<span class="tok-fn">Host:</span> www.google.com
+<span class="tok-fn">User-Agent:</span> Mozilla/5.0
+<span class="tok-fn">Accept:</span> text/html</pre>
+              </div>
+            </li>
+            <li><strong>Response & Render:</strong> The server replies with the HTML. The browser parses it, finds <code>&lt;link rel="stylesheet"&gt;</code> and <code>&lt;script&gt;</code> tags, and repeats this entire process for every static asset to render the final page.</li>
+          </ol>
+        </div></div>
+      </div>
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128682; Firewalls: Network ACLs vs Security Groups vs WAF</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Not all firewalls are the same. Understanding <em>where</em> in the OSI model they operate is critical for debugging connectivity issues.</p>
+          
+          <div class="meme-box" style="margin: 16px 0;">
+            <div class="meme-label">&#128128; THE STATELESS TRAP</div>
+            <div class="meme-setup">Dev: *Opens port 443 INBOUND on the Subnet Network ACL*</div>
+            <div class="meme-setup">Client: *Sends HTTPS request to server*</div>
+            <div class="meme-setup">Server: *Tries to send the HTML response back on ephemeral port 34192*</div>
+            <div class="meme-setup">The Network ACL blocking outbound traffic: 🛑✋</div>
+            <div class="meme-punchline">"Chat, why is my load balancer timing out?"</div>
+          </div>
+
+          <ul style="padding-left: 20px; margin-top: 16px; display: flex; flex-direction: column; gap: 12px;">
+            <li><strong>Security Groups (Layer 4, Stateful):</strong> Attached directly to a server (like an AWS EC2 instance). Because they are <em>stateful</em>, if you allow an incoming request on Port 443, the firewall automatically remembers the connection state and allows the outbound response, regardless of the port.</li>
+            
+            <li><strong>Network ACLs (Layer 4, Stateless):</strong> Attached to the entire subnet boundary. Because they are <em>stateless</em>, they do not remember active connections. If you allow Inbound Port 443, you <strong>must explicitly write a rule</strong> allowing Outbound Ephemeral Ports (1024-65535) so the server can actually reply to the client.</li>
+            
+            <li><strong>Web Application Firewall / WAF (Layer 7):</strong> Operates at the Application layer. It doesn't care about ports; it inspects the actual HTTP payload. A WAF can block a request because the JSON body contains a known SQL Injection signature (e.g., <code>' OR 1=1;--</code>), even if the IP address and port are fully authorized.</li>
+          </ul>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: CODE -->
+<section id="code">
+  <div class="container">
+    <p class="section-label">Show Me the Code</p>
+    <h2>Building a WebSocket Server</h2>
+    <p>A simple Node.js implementation showing how a persistent, two-way WebSocket connection handles real-time chat, completely bypassing the standard HTTP Request/Response cycle.</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">JavaScript (Node.js)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre class="code-content" data-code>
+<span class="tok-kw">const</span> WebSocket = <span class="tok-fn">require</span>(<span class="tok-str">'ws'</span>);
+
+<span class="tok-cmt">// Attach WebSocket server to port 8080</span>
+<span class="tok-kw">const</span> wss = <span class="tok-kw">new</span> WebSocket.<span class="tok-cls">Server</span>({ port: <span class="tok-num">8080</span> });
+
+wss.<span class="tok-fn">on</span>(<span class="tok-str">'connection'</span>, <span class="tok-kw">function</span> <span class="tok-fn">connection</span>(ws) {
+  <span class="tok-fn">console</span>.<span class="tok-fn">log</span>(<span class="tok-str">'New client connected!'</span>);
+
+  <span class="tok-cmt">// Listen for incoming messages from THIS specific client</span>
+  ws.<span class="tok-fn">on</span>(<span class="tok-str">'message'</span>, <span class="tok-kw">function</span> <span class="tok-fn">incoming</span>(message) {
+    <span class="tok-fn">console</span>.<span class="tok-fn">log</span>(<span class="tok-str">'received: %s'</span>, message);
+
+    <span class="tok-cmt">// Broadcast the message to ALL connected clients</span>
+    wss.clients.<span class="tok-fn">forEach</span>(<span class="tok-kw">function</span> <span class="tok-fn">each</span>(client) {
+      <span class="tok-kw">if</span> (client !== ws <span class="tok-op">&&</span> client.readyState === WebSocket.OPEN) {
+        client.<span class="tok-fn">send</span>(message);
+      }
+    });
+  });
+
+  <span class="tok-cmt">// The server can push data to the client at any time</span>
+  ws.<span class="tok-fn">send</span>(<span class="tok-str">'Welcome to the real-time chat!'</span>);
+});</pre>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: REAL WORLD -->
+<section id="real-world">
+  <div class="container">
+    <p class="section-label">Industry Architecture</p>
+    <h2>What Real Companies Use</h2>
+
+    <div class="rw-item">
+      <strong>&#127869;&#65039; Netflix</strong>
+      <p style="font-size:14px;margin-top:6px;">Uses <strong>HTTPS (TCP)</strong> for the user interface, browsing, and fetching metadata (where reliability is required). However, the actual video streaming heavily utilizes adaptive bitrate streaming over HTTP, but historically and in specialized environments, media companies use <strong>UDP</strong> to prevent dropped frames from buffering the entire stream.</p>
+    </div>
+
+    <div class="rw-item">
+      <strong>&#128172; Discord</strong>
+      <p style="font-size:14px;margin-top:6px;">Uses <strong>WebSockets</strong> for real-time text chat and presence (online/offline status). For voice and video calls, they use WebRTC which operates over <strong>UDP</strong> to ensure the lowest possible latency for gamers, accepting occasional audio glitches over delays.</p>
+    </div>
+    
+    <div class="rw-item">
+      <strong>&#128664; Uber</strong>
+      <p style="font-size:14px;margin-top:6px;">Uses <strong>gRPC</strong> internally for hundreds of microservices to communicate with each other due to its binary efficiency and strict Protobuf contracts. The mobile apps communicate with the edge gateways using standard JSON over HTTPS.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 8: QUIZ -->
+<section id="quiz">
+  <div class="container">
+    <p class="section-label">Knowledge Verification</p>
+    <h2>Test Your Understanding</h2>
+
+    <div class="quiz-progress">
+      <span id="quiz-score-text" class="quiz-score-display">0 / 5</span>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="quiz-progress-bar" style="width:0%"></div></div>
+      <span id="quiz-q-num" style="font-size:13px;color:var(--text-muted);">0 of 5 answered</span>
+    </div>
+
+    <div class="quiz">
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. You are building a live multiplayer First Person Shooter (FPS) game. Which transport protocol should you use for sending player movement coordinates?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">A</span> TCP</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">B</span> UDP</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">C</span> HTTP/3</button>
+        </div>
+        <div class="quiz-explanation" id="exp-1">
+          &#10003; <strong>UDP.</strong> In an FPS, if a player's position packet from 50ms ago drops, you don't want the network to halt and re-request it (like TCP does). You just want the <em>newest</em> position packet instantly. UDP is fast and fire-and-forget.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. Which API paradigm solves the "over-fetching" problem by allowing the client to specify exactly which fields it wants in the response?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">A</span> REST</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">B</span> gRPC</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">C</span> GraphQL</button>
+        </div>
+        <div class="quiz-explanation" id="exp-2">
+          &#10003; <strong>GraphQL.</strong> It was designed by Facebook specifically to prevent mobile apps from having to download massive REST payloads just to get a user's name and profile picture URL.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Which of the following networking security layers is STATELESS, requiring you to manually authorize outbound ephemeral ports?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> Security Groups (attached to the instance)</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">B</span> Network ACLs (attached to the subnet)</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">C</span> Web Application Firewall (WAF)</button>
+        </div>
+        <div class="quiz-explanation" id="exp-3">
+          &#10003; <strong>Network ACLs.</strong> Because they operate statelessly at the subnet boundary, they do not track active connections. Any outbound response must explicitly be allowed by an outbound rule.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">4. Why might a company choose Server-Sent Events (SSE) over WebSockets for a live stock ticker dashboard?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,true,4)"><span class="opt-letter">A</span> The data flow is entirely one-way (Server to Client).</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">B</span> SSE is faster than WebSockets.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">C</span> WebSockets cannot handle JSON data.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-4">
+          &#10003; <strong>One-way data flow.</strong> A stock ticker only needs to push data <em>down</em> to the client. SSE is a simpler, native HTTP protocol built exactly for one-way server-push scenarios, whereas WebSockets require a persistent two-way TCP connection.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">5. What is the very first step when a user types "github.com" into their browser?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,5)"><span class="opt-letter">A</span> Establishing a TCP Handshake.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,5)"><span class="opt-letter">B</span> DNS Resolution to find the IP address.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,5)"><span class="opt-letter">C</span> Sending the HTTP GET Request.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-5">
+          &#10003; <strong>DNS Resolution.</strong> A browser cannot establish a TCP handshake until it knows the actual IP address of the server. It must query the Domain Name System first.
+        </div>
+      </div>
+    </div>
+
+    <div id="quiz-final" style="display:none;" class="callout tip">
+      <span class="callout-icon">&#127881;</span>
+      <div id="quiz-final-text"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="meme-box" style="text-align:center;">
+      <div class="meme-label" style="justify-content:center;">&#128187; END OF NETWORKING</div>
+      <div class="meme-setup">Me deploying a gRPC microservice mesh over HTTP/2 for a blog with 3 visitors:</div>
+      <div class="meme-punchline" style="margin-top:8px;">"I am something of a systems architect myself."</div>
+    </div>
+    <div class="footer-nav">
+      <a href="../1-fundamentals/2-Scalability.html">&#8592; Scalability</a>
+      <a href="#">Load Balancing & Proxies &#8594;</a>
+    </div>
+  </div>
+</footer>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">&#8593;</button>
+
+<script>
+// --- UI Helpers (Tabs & Accordions) ---
+function switchTab(btn, tabId) {
+  const container = btn.closest('.tabs');
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  container.querySelector('#tab-' + tabId).classList.add('active');
+}
+
+function toggleAccordion(item) {
+  const body = item.querySelector('.accordion-body');
+  const inner = item.querySelector('.accordion-body-inner');
+  const isOpen = item.classList.contains('open');
+  
+  // Close others
+  document.querySelectorAll('.accordion-item').forEach(i => {
+    if(i !== item) {
+      i.classList.remove('open');
+      i.querySelector('.accordion-body').style.maxHeight = '0';
+    }
+  });
+
+  if (!isOpen) {
+    item.classList.add('open');
+    // small hack to ensure DOM has rendered internal content height accurately
+    setTimeout(() => {
+      body.style.maxHeight = inner.scrollHeight + 80 + 'px';
+    }, 10);
+  } else {
+    item.classList.remove('open');
+    body.style.maxHeight = '0';
+  }
+}
+
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('[data-code]');
+  navigator.clipboard.writeText(code.innerText || code.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// --- OSI Model Interactive ---
+const osiData = {
+  7: { title: "Layer 7: Application", desc: "Where the software meets the network. This layer defines how data is formatted. Features HTTP, HTTPS, WebSockets, REST, GraphQL, gRPC, and DNS resolution.", tags: "HTTP | REST | gRPC | WebSockets | DNS" },
+  4: { title: "Layer 4: Transport", desc: "Responsible for getting data from point A to point B. Defines reliability and connection state. Features TCP (reliable, ordered) and UDP (fast, lossy).", tags: "TCP | UDP | Ports" },
+  3: { title: "Layer 3: Network", desc: "Responsible for routing packets across multiple distinct networks using IP addresses. This is where IP routing, L3 Load Balancing, and Network ACLs operate.", tags: "IPv4/IPv6 | IP Routing | IPsec" }
+};
+
+function showOsi(layerNum) {
+  document.querySelectorAll('.osi-layer').forEach(l => l.classList.remove('active'));
+  document.querySelector('.osi-layer.l' + layerNum).classList.add('active');
+  
+  const box = document.getElementById('osi-details');
+  const d = osiData[layerNum];
+  
+  box.classList.remove('show');
+  setTimeout(() => {
+    document.getElementById('osi-title').textContent = d.title;
+    document.getElementById('osi-desc').textContent = d.desc;
+    document.getElementById('osi-tags').innerHTML = d.tags.split(' | ').map(t => `<span class="osi-tag">${t}</span>`).join('');
+    box.classList.add('show');
+  }, 50);
+}
+
+// --- TCP vs UDP Simulator ---
+function runTCP() {
+  const pkt = document.getElementById('pkt-tcp');
+  pkt.style.transition = 'none';
+  pkt.style.left = '60px';
+  pkt.style.opacity = '1';
+  pkt.textContent = 'SYN';
+  
+  setTimeout(() => {
+    pkt.style.transition = 'left 0.8s ease-in-out';
+    pkt.style.left = 'calc(100% - 130px)'; // To Server
+    
+    setTimeout(() => {
+      pkt.textContent = 'SYN-ACK';
+      pkt.style.left = '60px'; // Back to Client
+      
+      setTimeout(() => {
+        pkt.textContent = 'ACK';
+        pkt.style.left = 'calc(100% - 130px)'; // To Server
+        
+        setTimeout(() => {
+          pkt.textContent = 'DATA';
+          pkt.style.background = 'var(--success)';
+        }, 800);
+      }, 800);
+    }, 800);
+  }, 50);
+}
+
+function runUDP() {
+  const p1 = document.getElementById('pkt-udp1');
+  const p2 = document.getElementById('pkt-udp2');
+  const p3 = document.getElementById('pkt-udp3');
+  
+  [p1, p2, p3].forEach(p => {
+    p.style.transition = 'none';
+    p.style.left = '60px';
+    p.style.opacity = '1';
+    p.classList.remove('dropped');
+  });
+
+  setTimeout(() => {
+    p1.style.transition = 'left 0.5s linear';
+    p1.style.left = 'calc(100% - 130px)';
+    
+    p2.style.transition = 'left 0.5s linear 0.2s';
+    p2.style.left = 'calc(100% - 130px)';
+    
+    // Simulate drop
+    p3.style.transition = 'left 0.3s linear 0.4s';
+    setTimeout(() => { p3.classList.add('dropped'); }, 450);
+    
+  }, 50);
+}
+
+// --- Quiz Logic ---
+let quizScore = 0, questionsAnswered = 0;
+
+function checkAnswer(btn, isCorrect, qNum) {
+  const q = btn.closest('.quiz-question');
+  if (q.querySelector('.correct')) return;
+  questionsAnswered++;
+  q.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+  if (isCorrect) {
+    btn.classList.add('correct');
+    quizScore++;
+  } else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (o.getAttribute('onclick') && o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  const exp = document.getElementById('exp-' + qNum);
+  exp.classList.add('show', isCorrect ? 'correct-exp' : 'wrong-exp');
+  document.getElementById('quiz-score-text').textContent = quizScore + ' / 5';
+  document.getElementById('quiz-q-num').textContent = questionsAnswered + ' of 5 answered';
+  document.getElementById('quiz-progress-bar').style.width = (questionsAnswered / 5 * 100) + '%';
+
+  if (questionsAnswered === 5) {
+    const final = document.getElementById('quiz-final');
+    const finalText = document.getElementById('quiz-final-text');
+    final.style.display = 'flex';
+    const msgs = [
+      'Rough start. Re-read the TCP/UDP and OSI sections.',
+      'Decent attempt! A couple of gaps on the Application layer.',
+      'Not bad! You are getting the hang of networking protocols.',
+      'Solid! You clearly understand how data moves across the web.',
+      'Perfect score! You understand networking at a level most engineers never reach. Ship it.'
+    ];
+    finalText.innerHTML = '<strong>' + quizScore + '/5 &#8212;</strong> ' + msgs[quizScore];
+    final.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// Scroll top
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-top').classList.toggle('visible', window.scrollY > 400);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1432 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storage — System Design Fundamentals</title>
+  <meta name="description" content="A comprehensive, interactive guide to storage in system design. Covers relational, document, key-value, wide-column, and graph databases. Includes ACID vs BASE, indexing, sharding, replication, and an interactive transaction simulator.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efec;
+      --border: #e9e9e7;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .topnav a { color: var(--accent); text-decoration: none; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid;
+    }
+    .badge-beginner { color: var(--success); border-color: var(--success); background: var(--success-light); }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    p:last-child { margin-bottom: 0; }
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .hook-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 24px; margin: 24px 0; font-size: 1.05em;
+    }
+    .hook-box .emoji { font-size: 1.8em; margin-bottom: 8px; display: block; }
+    .toc { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    .tabs { margin: 32px 0; }
+    .tab-list {
+      display: flex; gap: 4px; border-bottom: 2px solid var(--border);
+      overflow-x: auto; padding-bottom: 0;
+    }
+    .tab-btn {
+      padding: 10px 18px; border: none; background: none; cursor: pointer;
+      font-size: 14px; font-weight: 500; color: var(--text-muted);
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: all 0.2s; white-space: nowrap;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--bg-secondary); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-panel {
+      display: none;
+      border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      padding: 32px; background: var(--bg);
+    }
+    .tab-panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .db-table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px; }
+    .db-table th {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      padding: 10px 16px; text-align: left; font-weight: 600;
+      font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted);
+    }
+    .db-table td { border: 1px solid var(--border); padding: 10px 16px; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 13px; }
+    .db-table tr:hover td { background: var(--accent-light); }
+    .json-doc {
+      background: var(--code-bg); color: var(--code-text);
+      border-radius: var(--radius); padding: 20px;
+      font-family: 'JetBrains Mono','Fira Code',monospace;
+      font-size: 13px; line-height: 1.8; margin: 16px 0;
+    }
+    .json-key { color: #89b4fa; }
+    .json-string { color: #a6e3a1; }
+    .json-number { color: #fab387; }
+    .json-bool { color: #cba6f7; }
+    .kv-table { margin: 16px 0; }
+    .kv-row {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px;
+      font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 13px; transition: background 0.15s;
+    }
+    .kv-row:hover { background: var(--accent-light); }
+    .kv-key { color: var(--accent); font-weight: 600; min-width: 160px; }
+    .kv-arrow { color: var(--text-muted); }
+    .kv-value { color: var(--text); }
+    .wide-col-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    .wide-col-table th {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      padding: 8px 12px; font-weight: 600; font-size: 11px;
+      text-transform: uppercase; color: var(--text-muted);
+    }
+    .wide-col-table td { border: 1px solid var(--border); padding: 8px 12px; font-family: monospace; }
+    .wide-col-table .empty-cell {
+      background: repeating-linear-gradient(45deg,var(--bg-secondary),var(--bg-secondary) 2px,var(--bg) 2px,var(--bg) 6px);
+      color: var(--text-muted); font-style: italic; font-size: 11px;
+    }
+    .acid-base-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; margin: 24px 0; }
+    .acid-col { padding: 28px; }
+    .acid-col:first-child { border-right: 1px solid var(--border); background: #fefce8; }
+    .acid-col:last-child { background: #eff6ff; }
+    .acid-col h3 { margin-bottom: 20px; }
+    .acid-item { display: flex; gap: 12px; margin-bottom: 20px; align-items: flex-start; }
+    .acid-letter { font-size: 1.6em; font-weight: 800; line-height: 1; flex-shrink: 0; width: 28px; }
+    .acid-col:first-child .acid-letter { color: #b45309; }
+    .acid-col:last-child .acid-letter { color: #1d4ed8; }
+    .acid-content h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .acid-content p { font-size: 14px; color: var(--text-muted); margin: 0; }
+    .simulator { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
+    .sim-accounts { display: flex; gap: 24px; margin: 24px 0; justify-content: center; align-items: center; flex-wrap: wrap; }
+    .account-card {
+      background: var(--bg); border: 2px solid var(--border);
+      border-radius: var(--radius-lg); padding: 20px 32px;
+      text-align: center; transition: all 0.4s; min-width: 140px;
+    }
+    .account-card.highlight-success { border-color: var(--success); background: var(--success-light); }
+    .account-card.highlight-danger { border-color: var(--danger); background: var(--danger-light); }
+    .account-name { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+    .account-balance { font-size: 2em; font-weight: 700; letter-spacing: -0.02em; }
+    .account-balance.changed { animation: balChange 0.4s ease; }
+    @keyframes balChange { 0%{transform:scale(1)} 50%{transform:scale(1.15)} 100%{transform:scale(1)} }
+    .transfer-arrow { font-size: 2em; color: var(--text-muted); }
+    .sim-controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .sim-log {
+      background: var(--code-bg); color: var(--code-text);
+      border-radius: var(--radius); padding: 16px;
+      font-family: 'JetBrains Mono','Fira Code',monospace;
+      font-size: 12px; line-height: 1.9; min-height: 100px; margin-top: 16px;
+      white-space: pre-wrap; overflow-y: auto; max-height: 240px;
+    }
+    .log-success { color: #a6e3a1; }
+    .log-error { color: #f38ba8; }
+    .log-info { color: #89dceb; }
+    .log-warn { color: #f9e2af; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: var(--radius); border: none;
+      font-size: 14px; font-weight: 500; cursor: pointer;
+      transition: all 0.15s; text-decoration: none; font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-warning:hover { background: #b45309; }
+    .accordion { margin: 24px 0; }
+    .accordion-item { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+    .accordion-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px; cursor: pointer; background: var(--bg);
+      transition: background 0.15s; user-select: none;
+    }
+    .accordion-header:hover { background: var(--bg-secondary); }
+    .accordion-header h3 { margin: 0; font-size: 15px; }
+    .accordion-icon { color: var(--text-muted); transition: transform 0.25s; font-size: 20px; font-weight: 300; }
+    .accordion-item.open .accordion-icon { transform: rotate(45deg); }
+    .accordion-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
+    .accordion-body-inner { padding: 0 20px 24px; }
+    .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .code-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 16px; background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .code-lang { font-size: 11px; color: #7f849c; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .copy-btn {
+      font-size: 11px; color: #7f849c; background: none;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+      padding: 3px 8px; cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .copy-btn:hover { color: var(--code-text); border-color: rgba(255,255,255,0.3); }
+    .code-content {
+      padding: 20px; font-family: 'JetBrains Mono','Fira Code',monospace;
+      font-size: 13px; line-height: 1.8; overflow-x: auto; color: var(--code-text);
+    }
+    .tok-kw { color: #cba6f7; }
+    .tok-fn { color: #89b4fa; }
+    .tok-str { color: #a6e3a1; }
+    .tok-num { color: #fab387; }
+    .tok-cmt { color: #6c7086; font-style: italic; }
+    .tok-cls { color: #f9e2af; }
+    .tok-op { color: #89dceb; }
+    .tok-var { color: #cdd6f4; }
+    .callout {
+      border-radius: var(--radius); padding: 16px 20px;
+      margin: 20px 0; font-size: 14px; display: flex; gap: 12px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.5; }
+    .callout.info { background: var(--accent-light); border: 1px solid #bfdbfe; }
+    .callout.warning { background: var(--warning-light); border: 1px solid #fde68a; }
+    .callout.tip { background: var(--success-light); border: 1px solid #bbf7d0; }
+    .callout.danger { background: var(--danger-light); border: 1px solid #fecaca; }
+    .rw-item {
+      border-left: 3px solid var(--accent); padding: 14px 20px;
+      margin: 12px 0; background: var(--bg-secondary);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .rw-item strong { color: var(--accent); }
+    .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+    .decision-card { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; }
+    .decision-card .use-when { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 10px; }
+    .decision-card ul { padding-left: 18px; font-size: 14px; }
+    .decision-card li { margin-bottom: 6px; }
+    .decision-card.relational { border-top: 3px solid #f59e0b; }
+    .decision-card.document { border-top: 3px solid #8b5cf6; }
+    .decision-card.kv { border-top: 3px solid #10b981; }
+    .decision-card.wide { border-top: 3px solid #ef4444; }
+    .company-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+    .company-pill { padding: 3px 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .meme-box {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: var(--radius-lg); padding: 24px 28px; margin: 32px 0;
+      font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; line-height: 2;
+    }
+    .meme-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 12px; }
+    .meme-dim { color: var(--text-muted); }
+    .meme-bold { color: var(--text); font-weight: 600; }
+    .quiz-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .quiz-score-display { font-weight: 700; font-size: 1.1em; }
+    .progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 16px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
+    .quiz-q-text { font-weight: 600; font-size: 15px; margin-bottom: 16px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option {
+      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+      border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      transition: all 0.15s; background: var(--bg); font-size: 14px;
+      text-align: left; width: 100%; font-family: inherit;
+    }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #15803d; font-weight: 600; }
+    .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option .opt-letter {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+    }
+    .quiz-explanation {
+      margin-top: 12px; padding: 12px 16px; border-radius: var(--radius);
+      font-size: 14px; display: none; line-height: 1.6;
+    }
+    .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
+    .quiz-explanation.correct-exp { background: var(--success-light); color: #15803d; border-left: 3px solid var(--success); }
+    .quiz-explanation.wrong-exp { background: var(--danger-light); color: #b91c1c; border-left: 3px solid var(--danger); }
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
+    .footer-nav a {
+      display: flex; align-items: center; gap: 8px; color: var(--accent);
+      text-decoration: none; font-weight: 500; font-size: 14px;
+      padding: 10px 16px; border: 1px solid var(--border);
+      border-radius: var(--radius); transition: all 0.15s;
+    }
+    .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
+    .scroll-top {
+      position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px;
+      background: var(--accent); color: white; border-radius: 50%; border: none;
+      cursor: pointer; font-size: 18px; display: none; align-items: center;
+      justify-content: center; box-shadow: var(--shadow-md); transition: all 0.2s; z-index: 50;
+    }
+    .scroll-top.visible { display: flex; }
+    .scroll-top:hover { transform: translateY(-2px); background: #1d4ed8; }
+    .storage-hierarchy { margin: 20px 0; }
+    .hierarchy-row {
+      display: flex; align-items: center; gap: 16px; padding: 12px 16px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 6px; transition: background 0.15s; font-size: 14px;
+    }
+    .hierarchy-row:hover { background: var(--bg-secondary); }
+    .hierarchy-speed { font-family: monospace; font-size: 12px; color: var(--text-muted); min-width: 70px; }
+    .hierarchy-name { font-weight: 600; min-width: 140px; }
+    .hierarchy-bar-wrap { flex: 1; height: 8px; background: var(--border); border-radius: 4px; }
+    .hierarchy-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .speed-1 { background: #ef4444; }
+    .speed-2 { background: #f97316; }
+    .speed-3 { background: #eab308; }
+    .speed-4 { background: #22c55e; }
+    .speed-5 { background: #3b82f6; }
+    @media (max-width: 640px) {
+      h1 { font-size: 2em; }
+      .acid-base-grid { grid-template-columns: 1fr; }
+      .decision-grid { grid-template-columns: 1fr; }
+      .sim-accounts { flex-direction: column; align-items: center; }
+      .footer-nav { flex-direction: column; }
+      .tab-btn { padding: 8px 12px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">1. Fundamentals</a>
+    <span class="sep">&#8250;</span>
+    <span>Storage</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-topic">Fundamentals</span>
+      <span class="badge badge-beginner">Beginner Friendly</span>
+      <span class="badge badge-time">&#9201; ~20 min read</span>
+    </div>
+    <h1>Storage</h1>
+    <p class="page-subtitle">
+      How do systems remember things? From a simple key lookup to a billion-row distributed database &#8212;
+      this is where data lives, breathes, and occasionally gets corrupted at 3am.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#hook">Why storage is harder than you think</a></li>
+      <li><a href="#types">The big 5 storage types (interactive)</a></li>
+      <li><a href="#acid-base">ACID vs BASE &#8212; the great debate</a></li>
+      <li><a href="#simulator">Interactive: ACID Transaction Simulator</a></li>
+      <li><a href="#deep-dive">Deep Dives: Indexing, Sharding, Replication &amp; more</a></li>
+      <li><a href="#code">Code Examples</a></li>
+      <li><a href="#real-world">Real World: Netflix, Discord, Uber</a></li>
+      <li><a href="#when">When to use what</a></li>
+      <li><a href="#quiz">Quiz &#129514;</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: HOOK -->
+<section id="hook">
+  <div class="container">
+    <p class="section-label">The Setup</p>
+    <h2>Your App Needs to Remember Things</h2>
+    <div class="hook-box">
+      <span class="emoji">&#129504;</span>
+      <strong>Analogy time.</strong> Think about how <em>you</em> remember things.
+      Some things you keep in your head &#8212; fast, but limited.
+      Some things you write in a structured notebook &#8212; organized, searchable.
+      Some things you dump in a pile on your desk &#8212; flexible, chaotic, but findable if you know the keyword.
+      Some things you mail to a storage unit across town &#8212; cheap, massive, but slow to retrieve.
+      <br><br>
+      Computers do the exact same thing. And picking the <em>wrong</em> storage for the job is how you end up with
+      a system that works for 100 users and completely falls apart at 10,000.
+    </div>
+    <p>
+      Storage in system design is not just "use a database." It is about understanding the <strong>tradeoffs</strong>
+      between speed, durability, consistency, cost, and structure &#8212; then picking the tool that fits your specific problem.
+    </p>
+    <p>
+      There is no universally best database. Anyone who says "just use PostgreSQL for everything" 
+      has never tried to store 500 TB of video files in PostgreSQL. Please do not try.
+    </p>
+    <div class="meme-box">
+      <div class="meme-label">&#128172; Every startup, eventually</div>
+      <div class="meme-dim">Day 1 architect, confidently:</div>
+      <div class="meme-bold">"We'll just use MySQL. It'll be fine."</div>
+      <div class="meme-dim">&#8212; 18 months and 50M users later &#8212;</div>
+      <div class="meme-bold">"Why is our database the bottleneck for literally everything."</div>
+    </div>
+    <p>
+      The good news: once you understand the types of storage and their core properties, you will have the vocabulary
+      to make &#8212; and confidently defend &#8212; intelligent choices in any system design conversation.
+    </p>
+  </div>
+</section>
+
+<!-- SECTION 2: TYPES -->
+<section id="types">
+  <div class="container">
+    <p class="section-label">Core Concept</p>
+    <h2>The Big 5 Storage Types</h2>
+    <p>
+      Every database in the world falls into one of these categories.
+      Click each tab to see how the <strong>same user profile</strong> is stored differently across paradigms &#8212;
+      a great way to build an intuition for the tradeoffs.
+    </p>
+
+    <div class="tabs">
+      <div class="tab-list" role="tablist">
+        <button class="tab-btn active" role="tab" onclick="switchTab(this,'relational')">&#128449;&#65039; Relational</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(this,'document')">&#128196; Document</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(this,'keyvalue')">&#128273; Key-Value</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(this,'widecolumn')">&#128202; Wide-Column</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(this,'graph')">&#128376;&#65039; Graph</button>
+      </div>
+
+      <div id="tab-relational" class="tab-panel active">
+        <h3>Relational Databases (SQL)</h3>
+        <p>Data lives in <strong>tables</strong> with predefined columns and types. Relationships between data are expressed through <strong>foreign keys</strong> and resolved with <strong>JOINs</strong>. The schema is rigid &#8212; defined upfront, enforced at every write.</p>
+        <p><strong>Examples:</strong> PostgreSQL, MySQL, SQLite, Oracle, SQL Server, CockroachDB</p>
+        <p><strong>Our user, stored relationally across two normalized tables:</strong></p>
+        <table class="db-table">
+          <thead><tr><th>user_id</th><th>username</th><th>email</th><th>created_at</th><th>plan_id</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>evan</td><td>evan@example.com</td><td>2024-01-15</td><td>2</td></tr>
+            <tr><td>2</td><td>aisha</td><td>aisha@example.com</td><td>2024-02-03</td><td>1</td></tr>
+            <tr><td>3</td><td>moazzam</td><td>m@example.com</td><td>2024-03-20</td><td>3</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:14px;color:var(--text-muted);">The <code>plan_id</code> is a foreign key pointing to a separate <code>plans</code> table. No plan data is duplicated &#8212; you JOIN to get it. Change a plan's name once and every user sees the update instantly.</p>
+        <div class="callout info">
+          <span class="callout-icon">&#128161;</span>
+          <div><strong>The power of SQL</strong> is in complex queries across multiple tables:
+          "Give me all users who signed up in January, are on the Pro plan, made at least 3 purchases, and haven't logged in for 30 days."
+          That's one SQL statement. Try doing that elegantly with a key-value store.</div>
+        </div>
+        <div class="callout warning">
+          <span class="callout-icon">&#9888;&#65039;</span>
+          <div><strong>The catch:</strong> Scaling relational databases <em>horizontally</em> (adding more machines) is genuinely hard.
+          They were designed to scale <em>vertically</em> (bigger machine, more RAM). At extreme scale, this gets very expensive, very fast.</div>
+        </div>
+      </div>
+
+      <div id="tab-document" class="tab-panel">
+        <h3>Document Databases (NoSQL)</h3>
+        <p>Data is stored as <strong>self-contained documents</strong> &#8212; usually JSON or BSON. Each document can have a completely different structure. Schema is flexible &#8212; you don't define it upfront, and it can change per-document.</p>
+        <p><strong>Examples:</strong> MongoDB, Firestore, CouchDB, Amazon DocumentDB, RavenDB</p>
+        <p><strong>The same user, as a document:</strong></p>
+        <div class="json-doc">
+{<br>
+&nbsp;&nbsp;<span class="json-key">"_id"</span>: <span class="json-string">"user_a1b2c3d4"</span>,<br>
+&nbsp;&nbsp;<span class="json-key">"username"</span>: <span class="json-string">"evan"</span>,<br>
+&nbsp;&nbsp;<span class="json-key">"email"</span>: <span class="json-string">"evan@example.com"</span>,<br>
+&nbsp;&nbsp;<span class="json-key">"plan"</span>: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="json-key">"name"</span>: <span class="json-string">"Pro"</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="json-key">"price"</span>: <span class="json-number">29.99</span>,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="json-key">"features"</span>: [<span class="json-string">"analytics"</span>, <span class="json-string">"api_access"</span>, <span class="json-string">"priority_support"</span>]<br>
+&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;<span class="json-key">"addresses"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="json-key">"type"</span>: <span class="json-string">"home"</span>, <span class="json-key">"city"</span>: <span class="json-string">"Lahore"</span> },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span class="json-key">"type"</span>: <span class="json-string">"work"</span>, <span class="json-key">"city"</span>: <span class="json-string">"Karachi"</span> }<br>
+&nbsp;&nbsp;],<br>
+&nbsp;&nbsp;<span class="json-key">"settings"</span>: { <span class="json-key">"theme"</span>: <span class="json-string">"dark"</span>, <span class="json-key">"notifications"</span>: <span class="json-bool">true</span> }<br>
+}
+        </div>
+        <p style="font-size:14px;color:var(--text-muted);">Notice: the plan is embedded directly inside the user document &#8212; no JOIN needed. Fast reads. The trade-off: if the Pro plan price changes, you might need to update millions of documents.</p>
+        <div class="callout tip">
+          <span class="callout-icon">&#10003;</span>
+          <div><strong>Documents shine when:</strong> your data is naturally hierarchical, different items have different fields, you read/write entire records at once, and your schema is evolving rapidly.</div>
+        </div>
+        <div class="callout warning">
+          <span class="callout-icon">&#9888;&#65039;</span>
+          <div><strong>Watch out for:</strong> data duplication (denormalization), the lack of true cross-collection JOINs, and write amplification when shared nested data needs updating at scale.</div>
+        </div>
+      </div>
+
+      <div id="tab-keyvalue" class="tab-panel">
+        <h3>Key-Value Stores</h3>
+        <p>The simplest possible model: a <strong>giant distributed hash map</strong>. You give it a key, it gives you a value. No structure beyond that. No schema. No joins. No complex queries. Just pure, raw, blistering speed.</p>
+        <p><strong>Examples:</strong> Redis, Memcached, DynamoDB (in KV mode), etcd, Amazon ElastiCache</p>
+        <p><strong>The same user, decomposed into key-value pairs:</strong></p>
+        <div class="kv-table">
+          <div class="kv-row"><span class="kv-key">user:1:name</span><span class="kv-arrow">&#8594;</span><span class="kv-value">"evan"</span></div>
+          <div class="kv-row"><span class="kv-key">user:1:email</span><span class="kv-arrow">&#8594;</span><span class="kv-value">"evan@example.com"</span></div>
+          <div class="kv-row"><span class="kv-key">user:1:plan</span><span class="kv-arrow">&#8594;</span><span class="kv-value">"pro"</span></div>
+          <div class="kv-row"><span class="kv-key">session:abc123xyz</span><span class="kv-arrow">&#8594;</span><span class="kv-value">"user:1" &nbsp;<span style="color:var(--text-muted);font-size:11px;">(expires in 3600s)</span></span></div>
+          <div class="kv-row"><span class="kv-key">ratelimit:api:user:1</span><span class="kv-arrow">&#8594;</span><span class="kv-value">42 &nbsp;<span style="color:var(--text-muted);font-size:11px;">(requests this minute)</span></span></div>
+          <div class="kv-row"><span class="kv-key">leaderboard:global</span><span class="kv-arrow">&#8594;</span><span class="kv-value">Sorted Set {evan: 9420, aisha: 8870, ...}</span></div>
+        </div>
+        <p style="font-size:14px;color:var(--text-muted);">A lookup is O(1). Redis handles <strong>millions of reads per second</strong> on a single machine. This is why it's used as a cache layer in front of every "real" database at scale.</p>
+        <div class="callout tip">
+          <span class="callout-icon">&#10003;</span>
+          <div><strong>Perfect for:</strong> caching, session storage, rate limiting, leaderboards, real-time counters, pub/sub messaging, distributed locks. Anything where <strong>speed is the only thing that matters</strong>.</div>
+        </div>
+        <div class="callout info">
+          <span class="callout-icon">&#128161;</span>
+          <div>Redis is in-memory by default &#8212; that's the source of its speed. It does support disk persistence (RDB snapshots + AOF log), but reboots can lose recent writes. Acceptable for a cache. Not acceptable for your bank ledger.</div>
+        </div>
+      </div>
+
+      <div id="tab-widecolumn" class="tab-panel">
+        <h3>Wide-Column Stores</h3>
+        <p>Imagine a relational table, but where each row can have a <strong>completely different set of columns</strong>. Rows are grouped by a partition key and distributed across nodes. Designed from the ground up for massive distributed write throughput and high availability.</p>
+        <p><strong>Examples:</strong> Apache Cassandra, Google Bigtable, Apache HBase, ScyllaDB</p>
+        <p><strong>The same users &#8212; notice how different rows can have different columns:</strong></p>
+        <table class="wide-col-table">
+          <thead><tr><th>row_key</th><th>username</th><th>email</th><th>premium_since</th><th>last_login</th><th>beta_feature_x</th></tr></thead>
+          <tbody>
+            <tr><td><strong>user:1</strong></td><td>evan</td><td>evan@ex.com</td><td>2023-05-01</td><td>2024-03-15</td><td class="empty-cell">not set</td></tr>
+            <tr><td><strong>user:2</strong></td><td>aisha</td><td class="empty-cell">not set</td><td class="empty-cell">not set</td><td>2024-03-10</td><td>enabled</td></tr>
+            <tr><td><strong>user:3</strong></td><td>moazzam</td><td>m@ex.com</td><td class="empty-cell">not set</td><td>2024-03-18</td><td class="empty-cell">not set</td></tr>
+          </tbody>
+        </table>
+        <p style="font-size:14px;color:var(--text-muted);">Empty cells don't waste storage space &#8212; they literally don't exist on disk. In SQL, you'd need NULL columns for every row regardless. This makes wide-column stores very efficient for sparse data.</p>
+        <div class="callout info">
+          <span class="callout-icon">&#128161;</span>
+          <div><strong>Cassandra's superpower:</strong> it automatically partitions data across nodes using consistent hashing. Add 50 more nodes and it rebalances automatically. Netflix uses Cassandra for <strong>over 1 trillion requests per day</strong> for viewing history data.</div>
+        </div>
+        <div class="callout warning">
+          <span class="callout-icon">&#9888;&#65039;</span>
+          <div><strong>The tradeoff:</strong> you need to design your data model around your queries upfront. Ad-hoc queries and joins don't work. Your query patterns need to be known and stable. If they change, you may need to redesign your tables.</div>
+        </div>
+      </div>
+
+      <div id="tab-graph" class="tab-panel">
+        <h3>Graph Databases</h3>
+        <p>Data is stored as <strong>nodes</strong> (entities) and <strong>edges</strong> (relationships between entities). Optimized for traversing connected data &#8212; queries that would require expensive recursive multi-level JOINs in SQL are trivial in a graph database.</p>
+        <p><strong>Examples:</strong> Neo4j, Amazon Neptune, ArangoDB, TigerGraph, JanusGraph</p>
+        <div class="callout info" style="margin-top: 0;">
+          <span class="callout-icon">&#128376;&#65039;</span>
+          <div>
+            <strong>evan</strong> &#8594; [FOLLOWS] &#8594; <strong>aisha</strong><br>
+            <strong>aisha</strong> &#8594; [FOLLOWS] &#8594; <strong>moazzam</strong><br>
+            <strong>evan</strong> &#8594; [LIKED] &#8594; <strong>Post #42</strong><br>
+            <strong>Post #42</strong> &#8594; [TAGGED_WITH] &#8594; <strong>Topic: System Design</strong>
+          </div>
+        </div>
+        <p>The query "find friends-of-evan's-friends who also like System Design content" is a 3-hop traversal. In SQL: a nightmarish recursive JOIN. In Neo4j's Cypher language:</p>
+        <div class="code-block">
+          <div class="code-header"><span class="code-lang">Cypher (Neo4j)</span></div>
+          <div class="code-content">
+<span class="tok-kw">MATCH</span> (u:User {name:<span class="tok-str">"evan"</span>})-[:FOLLOWS]-&gt;(:User)-[:FOLLOWS]-&gt;(fof:User)<br>
+<span class="tok-kw">WHERE</span> (fof)-[:LIKED]-&gt;(:Topic {name:<span class="tok-str">"System Design"</span>})<br>
+&nbsp;&nbsp;<span class="tok-kw">AND</span> fof.name &lt;&gt; <span class="tok-str">"evan"</span><br>
+<span class="tok-kw">RETURN</span> fof.name, <span class="tok-fn">count</span>(*) <span class="tok-kw">AS</span> mutual_connections<br>
+<span class="tok-kw">ORDER BY</span> mutual_connections <span class="tok-kw">DESC</span>
+          </div>
+        </div>
+        <div class="callout tip">
+          <span class="callout-icon">&#10003;</span>
+          <div><strong>Use graph DBs for:</strong> social networks (LinkedIn, Twitter follower graphs), recommendation engines ("people who bought X also bought Y"), fraud detection (suspicious transaction patterns), knowledge graphs, and any domain where the <em>relationships between data</em> are as important as the data itself.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- SECTION 3: ACID vs BASE -->
+<section id="acid-base">
+  <div class="container">
+    <p class="section-label">The Great Debate</p>
+    <h2>ACID vs BASE</h2>
+    <p>
+      These are not database products &#8212; they are <strong>sets of guarantees</strong> about how a database behaves
+      when things go wrong. And in distributed systems, things always go wrong.
+      The question is how your database responds when they do.
+    </p>
+
+    <div class="acid-base-grid">
+      <div class="acid-col">
+        <h3>&#9879;&#65039; ACID</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Guarantees correctness above all else. The gold standard for financial systems, inventory management, and anything where partial data is worse than no data.</p>
+        <div class="acid-item">
+          <span class="acid-letter">A</span>
+          <div class="acid-content">
+            <h4>Atomicity</h4>
+            <p>All or nothing. A transaction with 5 steps either <em>all</em> succeed, or none of them do. If step 4 fails, steps 1-3 are automatically rolled back. Money cannot leave Alice's account without arriving in Bob's.</p>
+          </div>
+        </div>
+        <div class="acid-item">
+          <span class="acid-letter">C</span>
+          <div class="acid-content">
+            <h4>Consistency</h4>
+            <p>The database always transitions from one valid state to another valid state. Business rules and constraints are always enforced. You cannot set a balance to a negative number if you have a constraint preventing it.</p>
+          </div>
+        </div>
+        <div class="acid-item">
+          <span class="acid-letter">I</span>
+          <div class="acid-content">
+            <h4>Isolation</h4>
+            <p>Concurrent transactions cannot see each other's intermediate states. If two users simultaneously buy the last item in stock, only one transaction succeeds. The other sees the state <em>after</em> the first committed.</p>
+          </div>
+        </div>
+        <div class="acid-item">
+          <span class="acid-letter">D</span>
+          <div class="acid-content">
+            <h4>Durability</h4>
+            <p>Once committed, it's permanent. Even if the server crashes, catches fire, or a junior dev runs DROP TABLE in prod &#8212; the committed data survives. It's written to non-volatile storage, typically with a write-ahead log.</p>
+          </div>
+        </div>
+      </div>
+      <div class="acid-col">
+        <h3>&#127754; BASE</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px;">Trades perfect consistency for massive availability and horizontal scale. The pragmatist's choice when you have more data than any single machine can handle.</p>
+        <div class="acid-item">
+          <span class="acid-letter">B</span>
+          <div class="acid-content">
+            <h4>Basically Available</h4>
+            <p>The system guarantees availability (it responds to requests), but not necessarily with the most recent data. Even if 3 of your 10 nodes fail, the remaining 7 keep serving requests &#8212; possibly with stale data.</p>
+          </div>
+        </div>
+        <div class="acid-item">
+          <span class="acid-letter">S</span>
+          <div class="acid-content">
+            <h4>Soft State</h4>
+            <p>The system's state may change over time, even without input &#8212; because replicas are asynchronously catching up to the latest writes. The state is not frozen; it's converging.</p>
+          </div>
+        </div>
+        <div class="acid-item">
+          <span class="acid-letter">E</span>
+          <div class="acid-content">
+            <h4>Eventually Consistent</h4>
+            <p>Given enough time (usually milliseconds to a few seconds), all replicas will converge to the same value. A read right after a write might return stale data &#8212; but will eventually be correct. This window is the "inconsistency window."</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">&#129517;</span>
+      <div>
+        <strong>The practical rule of thumb:</strong> Use ACID when correctness is non-negotiable &#8212; money, medical records, inventory, bookings.
+        Use BASE when scale and availability matter more than perfect consistency &#8212; social media feeds, view counts, recommendation scores, search indices.
+        <br><br>
+        If your app shows a post with 10,002 likes when it actually has 10,000 &#8212; nobody dies. BASE territory.
+        If your banking app shows $200 more than you actually have &#8212; that's a front-page news story. ACID territory.
+      </div>
+    </div>
+
+    <div class="meme-box">
+      <div class="meme-label">&#128514; On eventual consistency, a classic exchange</div>
+      <div class="meme-dim">PM: "Why does my tweet show 0 likes but my colleague's phone shows 47 likes on the same tweet?"</div>
+      <div class="meme-bold">Engineer: "Don't worry. It'll eventually be consistent."</div>
+      <div class="meme-dim">PM: "When exactly?"</div>
+      <div class="meme-bold">Engineer: "...Eventually."</div>
+      <div class="meme-dim">PM: *opens a Jira ticket titled "Likes broken"*</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: SIMULATOR -->
+<section id="simulator">
+  <div class="container">
+    <p class="section-label">&#9654; Interactive Demo</p>
+    <h2>ACID Transaction Simulator</h2>
+    <p>
+      Nothing makes ACID click like watching a bank transfer go wrong. Run each scenario and observe exactly
+      what happens at each step &#8212; with and without ACID guarantees.
+    </p>
+
+    <div class="simulator">
+      <h3 style="text-align:center;margin-bottom:6px;">&#127974; Bank Transfer: Alice &#8594; Bob</h3>
+      <p style="text-align:center;font-size:14px;color:var(--text-muted);margin-bottom:24px;">Attempting to transfer <strong>$200</strong></p>
+
+      <div class="sim-accounts">
+        <div class="account-card" id="acc-alice">
+          <div class="account-name">Alice</div>
+          <div class="account-balance" id="bal-alice">$1,000</div>
+        </div>
+        <div class="transfer-arrow" id="transfer-arrow">&#8594;</div>
+        <div class="account-card" id="acc-bob">
+          <div class="account-name">Bob</div>
+          <div class="account-balance" id="bal-bob">$500</div>
+        </div>
+      </div>
+
+      <div class="sim-controls">
+        <button class="btn btn-primary" onclick="runSim('acid')">&#9654; ACID: Success</button>
+        <button class="btn btn-warning" onclick="runSim('acid-fail')">&#128165; ACID + Server Crash</button>
+        <button class="btn btn-danger" onclick="runSim('no-acid')">&#9888;&#65039; No ACID + Crash</button>
+        <button class="btn btn-secondary" onclick="resetSim()">&#8635; Reset</button>
+      </div>
+
+      <div class="sim-log" id="sim-log">Click a button above to start the simulation...</div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">&#127919;</span>
+      <div>The key insight: <strong>ACID + crash = no data loss</strong>. Without ACID, a crash mid-transaction leaves your data in a corrupt, inconsistent state that is very hard to recover from. This is why write-ahead logs (WAL) exist &#8212; they record intent before acting.</div>
+    </div>
+  </div>
+</section>
+<!-- SECTION 5: DEEP DIVES -->
+<section id="deep-dive">
+  <div class="container">
+    <p class="section-label">Going Deeper</p>
+    <h2>Advanced Storage Concepts</h2>
+    <p>These come up in virtually every senior system design interview. You don't need to memorize details &#8212; you need to understand the <em>tradeoffs</em>.</p>
+
+    <div class="accordion">
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128451;&#65039; Indexing &#8212; How reads become fast</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Without an index, finding a specific row means scanning every row in the table &#8212; a full table scan. At 10 million rows, that's catastrophically slow. An index is a separate data structure (usually a B-Tree or Hash Map) that maps column values to row locations, enabling fast lookups.</p>
+          <div class="callout info">
+            <span class="callout-icon">&#128218;</span>
+            <div><strong>Library analogy:</strong> Without an index, finding a book about "Distributed Systems" means walking every single aisle. With an index (card catalog), you go directly to section 004.36.</div>
+          </div>
+          <p><strong>B-Tree Index</strong> &#8212; The default in PostgreSQL and MySQL. Keeps data sorted, so it's great for both equality (<code>WHERE id = 42</code>) and range queries (<code>WHERE age BETWEEN 20 AND 30</code>). Lookup is O(log n).</p>
+          <p><strong>Hash Index</strong> &#8212; O(1) exact lookup for equality only. Useless for range queries. Redis uses this internally.</p>
+          <p><strong>Composite Index</strong> &#8212; An index on multiple columns: <code>INDEX(last_name, first_name)</code>. The leftmost prefix rule applies: this helps queries on <code>last_name</code> alone, or <code>last_name + first_name</code> together, but NOT on <code>first_name</code> alone. Column order matters.</p>
+          <p><strong>Covering Index</strong> &#8212; When an index contains all the columns a query needs, the DB can answer from the index alone without touching the main table. Zero disk I/O for the table data. Extremely fast.</p>
+          <div class="callout warning">
+            <span class="callout-icon">&#9888;&#65039;</span>
+            <div><strong>The write tax:</strong> Every index you add slows down INSERT, UPDATE, and DELETE operations because the index structure must be updated too. Index thoughtfully &#8212; only what your actual query patterns need.</div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">&#127919;</span>
+            <div><strong>Interview tip:</strong> When asked "how would you speed up this query?" &#8212; first verify there's an index on the WHERE clause columns. Then check if it's a covering index. That's 90% of the answer.</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128256; Sharding &#8212; Splitting data across machines</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>When your data outgrows one machine, you split it across multiple machines. Each machine (shard) holds a <em>subset</em> of the data. Together they hold all of it. This is called horizontal partitioning.</p>
+          <div class="callout info">
+            <span class="callout-icon">&#127829;</span>
+            <div><strong>Pizza delivery analogy:</strong> You have 10,000 orders and one driver. Solution: hire 100 drivers, each covering their own neighborhood. Each driver is a shard. The dispatch system knows which driver handles which neighborhood (the shard key).</div>
+          </div>
+          <p><strong>Sharding strategies:</strong></p>
+          <ul style="padding-left:20px;margin:12px 0;">
+            <li style="margin-bottom:8px;"><strong>Range-based:</strong> Users A-M &#8594; Shard 1, N-Z &#8594; Shard 2. Simple to implement, but causes hot spots if your data isn't evenly distributed. (Everyone named "Aaron" hits Shard 1.)</li>
+            <li style="margin-bottom:8px;"><strong>Hash-based:</strong> <code>shard = hash(user_id) % num_shards</code>. Evenly distributes data, but adding or removing shards requires rehashing and moving a lot of data.</li>
+            <li style="margin-bottom:8px;"><strong>Consistent hashing:</strong> A smarter hash approach that minimizes data movement when nodes are added/removed. Adding a node only reshuffles ~1/n of the data instead of everything. Used by Cassandra, DynamoDB, Redis Cluster, and most production systems.</li>
+            <li style="margin-bottom:8px;"><strong>Directory-based:</strong> A separate lookup service tracks where each shard's data lives. Flexible, but the lookup service becomes a potential bottleneck and single point of failure.</li>
+          </ul>
+          <div class="callout warning">
+            <span class="callout-icon">&#9888;&#65039;</span>
+            <div><strong>Cross-shard JOINs are painful.</strong> If a User is on Shard 1 and their Orders are on Shard 3 (because they're sharded differently), joining them requires a network hop and cross-shard coordination. This is why sharding often forces denormalization &#8212; you embed related data in the same shard to avoid cross-shard queries.</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128203; Replication &#8212; Surviving failures</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Replication means keeping synchronized copies of your data on multiple machines. If one machine dies, the others keep serving. Reads can also be distributed across replicas, scaling read throughput linearly with replica count.</p>
+          <p><strong>Leader-Follower (Primary-Replica) Replication:</strong></p>
+          <ul style="padding-left:20px;margin:12px 0;">
+            <li style="margin-bottom:8px;">One node is the <strong>leader</strong> &#8212; all writes go exclusively to it</li>
+            <li style="margin-bottom:8px;"><strong>Followers</strong> replicate the leader's write log asynchronously (or synchronously for stronger consistency)</li>
+            <li style="margin-bottom:8px;">Read-heavy systems distribute reads to followers &#8212; 3 replicas = 3x read throughput</li>
+            <li style="margin-bottom:8px;">If the leader dies, a follower is promoted via leader election (Raft or Paxos). This process takes seconds to minutes &#8212; during which writes may be unavailable</li>
+          </ul>
+          <p><strong>Multi-Leader (Active-Active) Replication:</strong></p>
+          <ul style="padding-left:20px;margin:12px 0;">
+            <li style="margin-bottom:8px;">Multiple nodes accept writes simultaneously</li>
+            <li style="margin-bottom:8px;">Ideal for geo-distributed systems &#8212; writes go to the nearest data center, minimizing latency for users worldwide</li>
+            <li style="margin-bottom:8px;"><strong>Hard problem:</strong> write conflicts. If Alice updates her profile on the US node and the EU node simultaneously, which update wins? Common strategies: last-write-wins, vector clocks, CRDTs, or application-level conflict resolution</li>
+          </ul>
+          <div class="callout info">
+            <span class="callout-icon">&#128161;</span>
+            <div><strong>Replication lag</strong> is the delay between a write on the leader and when followers reflect it. During this window, a read from a stale follower returns outdated data. This is exactly what "eventual consistency" looks like in practice. The lag is usually milliseconds but can spike under load.</div>
+          </div>
+          <div class="callout tip">
+            <span class="callout-icon">&#127919;</span>
+            <div><strong>Read-your-own-writes consistency:</strong> A common technique is routing reads to the leader for a short window after a write, so a user always sees their own recent changes even if replicas are lagging. Used everywhere &#8212; you never see your own Tweet take 5 seconds to appear.</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#9881;&#65039; CAP Theorem &#8212; The impossible triangle</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>CAP Theorem (proven by Eric Brewer in 2000) states that a distributed system can provide at most <strong>2 out of 3</strong> of these guarantees simultaneously:</p>
+          <ul style="padding-left:20px;margin:12px 0;">
+            <li style="margin-bottom:12px;"><strong>Consistency (C):</strong> Every read receives the most recent write, or an error. All nodes see the same data at the same time.</li>
+            <li style="margin-bottom:12px;"><strong>Availability (A):</strong> Every request receives a response (not an error), even if it's stale data. The system never refuses to answer.</li>
+            <li style="margin-bottom:12px;"><strong>Partition Tolerance (P):</strong> The system continues to operate even when network partitions occur (i.e., some nodes cannot communicate with others).</li>
+          </ul>
+          <div class="callout warning">
+            <span class="callout-icon">&#9888;&#65039;</span>
+            <div><strong>P is not optional.</strong> Network partitions happen in the real world &#8212; cables get cut, data centers lose connectivity. So the real choice is between <strong>CP</strong> (consistent but may reject requests during partitions) and <strong>AP</strong> (always available but may return stale data during partitions).</div>
+          </div>
+          <p><strong>CP systems:</strong> PostgreSQL, MySQL, HBase, etcd, ZooKeeper &#8212; prefer to refuse requests over returning inconsistent data.</p>
+          <p><strong>AP systems:</strong> Cassandra, DynamoDB, CouchDB &#8212; prefer to keep serving requests even at the cost of consistency. They let you tune the consistency level (eventual vs. strong) per query.</p>
+          <div class="callout info">
+            <span class="callout-icon">&#128161;</span>
+            <div>Modern distributed databases like Google Spanner and CockroachDB push back on CAP by using globally synchronized clocks (TrueTime) to provide strong consistency at global scale &#8212; but at the cost of significantly higher latency and engineering complexity.</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128190; Storage Hierarchy &#8212; Speed vs. Cost vs. Size</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Not all storage is created equal. Understanding this hierarchy is why caching exists &#8212; it's one of the highest-leverage optimizations in all of engineering.</p>
+          <div class="storage-hierarchy" id="hierarchy">
+            <div class="hierarchy-row"><span class="hierarchy-name">CPU Cache (L1/L2)</span><div class="hierarchy-bar-wrap"><div class="hierarchy-bar speed-1" style="width:0%" data-width="100%"></div></div><span class="hierarchy-speed">~1ns</span></div>
+            <div class="hierarchy-row"><span class="hierarchy-name">RAM</span><div class="hierarchy-bar-wrap"><div class="hierarchy-bar speed-2" style="width:0%" data-width="80%"></div></div><span class="hierarchy-speed">~100ns</span></div>
+            <div class="hierarchy-row"><span class="hierarchy-name">NVMe SSD</span><div class="hierarchy-bar-wrap"><div class="hierarchy-bar speed-3" style="width:0%" data-width="55%"></div></div><span class="hierarchy-speed">~100&#181;s</span></div>
+            <div class="hierarchy-row"><span class="hierarchy-name">HDD (Spinning)</span><div class="hierarchy-bar-wrap"><div class="hierarchy-bar speed-4" style="width:0%" data-width="35%"></div></div><span class="hierarchy-speed">~10ms</span></div>
+            <div class="hierarchy-row"><span class="hierarchy-name">Object Store (S3)</span><div class="hierarchy-bar-wrap"><div class="hierarchy-bar speed-5" style="width:0%" data-width="15%"></div></div><span class="hierarchy-speed">~100ms</span></div>
+          </div>
+          <p style="font-size:14px;color:var(--text-muted);margin-top:8px;">Bar length = relative speed (longer = faster). The speed difference between L1 cache and S3 is roughly <strong>100 million times</strong>.</p>
+          <div class="callout info">
+            <span class="callout-icon">&#9889;</span>
+            <div>A cache hit at 100ns vs. a database disk read at 10ms is a <strong>100,000x speedup</strong>. This is why caching is always one of the first scaling solutions in system design interviews &#8212; it's the highest ROI optimization that exists.</div>
+          </div>
+        </div></div>
+      </div>
+
+      <div class="accordion-item" onclick="toggleAccordion(this)">
+        <div class="accordion-header">
+          <h3>&#128230; Object Storage &#8212; For the big stuff</h3>
+          <span class="accordion-icon">+</span>
+        </div>
+        <div class="accordion-body"><div class="accordion-body-inner">
+          <p>Databases store structured data. But what about videos, images, audio files, PDFs, ML model weights, binary blobs? That's what object storage is for.</p>
+          <p><strong>Examples:</strong> Amazon S3, Google Cloud Storage, Azure Blob Storage, Cloudflare R2, MinIO (self-hosted)</p>
+          <p>Object storage uses a flat namespace (no real folders &#8212; just keys that look like paths) and is optimized for storing and serving large files reliably and cheaply. YouTube videos, Netflix movies, WhatsApp photos &#8212; all live in object storage.</p>
+          <div class="callout tip">
+            <span class="callout-icon">&#127919;</span>
+            <div><strong>The universal pattern:</strong> Store the file in S3. Store the <em>URL or key</em> in your database. When you need the file, fetch the URL from DB, then stream the file directly from S3 to the user. This is how literally every large application works. Never store binary files in your relational database &#8212; it's slow, expensive, and kills performance.</div>
+          </div>
+          <p>Object stores also provide <strong>lifecycle policies</strong> (automatically move files to cheaper tiers after 30 days), <strong>versioning</strong> (keep previous versions of a file), and <strong>CDN integration</strong> (serve files from edge nodes close to the user for low latency).</p>
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+<!-- SECTION 6: CODE -->
+<section id="code">
+  <div class="container">
+    <p class="section-label">Show Me the Code</p>
+    <h2>Code Examples</h2>
+
+    <h3>SQL &#8212; The right way to do a bank transfer</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">SQL (PostgreSQL)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <div class="code-content" data-code>
+<span class="tok-cmt">-- WRONG: No transaction. If server crashes between these two lines, money vanishes.</span><br>
+<span class="tok-kw">UPDATE</span> accounts <span class="tok-kw">SET</span> balance = balance - <span class="tok-num">200</span> <span class="tok-kw">WHERE</span> id = <span class="tok-num">1</span>;<br>
+<span class="tok-kw">UPDATE</span> accounts <span class="tok-kw">SET</span> balance = balance + <span class="tok-num">200</span> <span class="tok-kw">WHERE</span> id = <span class="tok-num">2</span>;<br>
+<br>
+<span class="tok-cmt">-- CORRECT: Wrapped in an atomic transaction</span><br>
+<span class="tok-kw">BEGIN</span>;<br>
+<br>
+<span class="tok-kw">UPDATE</span> accounts<br>
+<span class="tok-kw">SET</span> balance = balance - <span class="tok-num">200</span><br>
+<span class="tok-kw">WHERE</span> id = <span class="tok-num">1</span> <span class="tok-kw">AND</span> balance &gt;= <span class="tok-num">200</span>; <span class="tok-cmt">-- prevent overdraft at the query level</span><br>
+<br>
+<span class="tok-kw">DO</span> $$<br>
+<span class="tok-kw">BEGIN</span><br>
+  <span class="tok-kw">IF</span> <span class="tok-fn">NOT</span> <span class="tok-fn">FOUND</span> <span class="tok-kw">THEN</span><br>
+    <span class="tok-kw">RAISE</span> EXCEPTION <span class="tok-str">'Insufficient funds or account not found'</span>;<br>
+  <span class="tok-kw">END IF</span>;<br>
+<span class="tok-kw">END</span>;<br>
+$$;<br>
+<br>
+<span class="tok-kw">UPDATE</span> accounts <span class="tok-kw">SET</span> balance = balance + <span class="tok-num">200</span> <span class="tok-kw">WHERE</span> id = <span class="tok-num">2</span>;<br>
+<br>
+<span class="tok-kw">COMMIT</span>; <span class="tok-cmt">-- Only now are both updates durable and visible to others</span><br>
+<span class="tok-cmt">-- Any exception above causes an automatic ROLLBACK</span>
+      </div>
+    </div>
+
+    <h3>Redis &#8212; Caching + Rate Limiting in Python</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Python (redis-py)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <div class="code-content" data-code>
+<span class="tok-kw">import</span> redis<br>
+<span class="tok-kw">import</span> json<br>
+<span class="tok-kw">from</span> functools <span class="tok-kw">import</span> wraps<br>
+<br>
+r = redis.<span class="tok-fn">Redis</span>(host=<span class="tok-str">'localhost'</span>, port=<span class="tok-num">6379</span>, decode_responses=<span class="tok-kw">True</span>)<br>
+<br>
+<span class="tok-cmt"># Cache-Aside pattern: check cache first, fall back to database</span><br>
+<span class="tok-kw">def</span> <span class="tok-fn">get_user</span>(user_id: <span class="tok-cls">int</span>) -&gt; <span class="tok-cls">dict</span>:<br>
+    cache_key = <span class="tok-str">f"user:{user_id}"</span><br>
+<br>
+    cached = r.<span class="tok-fn">get</span>(cache_key)<br>
+    <span class="tok-kw">if</span> cached:<br>
+        <span class="tok-kw">return</span> json.<span class="tok-fn">loads</span>(cached)  <span class="tok-cmt"># Cache HIT -- ~0.1ms</span><br>
+<br>
+    <span class="tok-cmt"># Cache MISS -- hit the database (~5-50ms)</span><br>
+    user = db.<span class="tok-fn">query</span>(<span class="tok-str">f"SELECT * FROM users WHERE id = {user_id}"</span>)<br>
+    <span class="tok-kw">if</span> user:<br>
+        r.<span class="tok-fn">setex</span>(cache_key, <span class="tok-num">300</span>, json.<span class="tok-fn">dumps</span>(user))  <span class="tok-cmt"># TTL = 5 min</span><br>
+    <span class="tok-kw">return</span> user<br>
+<br>
+<span class="tok-cmt"># Rate limiting with sliding window counter</span><br>
+<span class="tok-kw">def</span> <span class="tok-fn">is_rate_limited</span>(user_id: <span class="tok-cls">int</span>, limit: <span class="tok-cls">int</span> = <span class="tok-num">100</span>) -&gt; <span class="tok-cls">bool</span>:<br>
+    key = <span class="tok-str">f"ratelimit:{user_id}"</span><br>
+    <span class="tok-cmt"># INCR is atomic -- no race conditions possible</span><br>
+    count = r.<span class="tok-fn">incr</span>(key)<br>
+    <span class="tok-kw">if</span> count == <span class="tok-num">1</span>:<br>
+        r.<span class="tok-fn">expire</span>(key, <span class="tok-num">60</span>)  <span class="tok-cmt"># Start 60s window on first request</span><br>
+    <span class="tok-kw">return</span> count &gt; limit<br>
+<br>
+<span class="tok-cmt"># Distributed lock (prevents concurrent writes to the same resource)</span><br>
+<span class="tok-kw">def</span> <span class="tok-fn">acquire_lock</span>(resource: <span class="tok-cls">str</span>, ttl_seconds: <span class="tok-cls">int</span> = <span class="tok-num">10</span>) -&gt; <span class="tok-cls">bool</span>:<br>
+    <span class="tok-cmt"># SET NX = Set if Not eXists. Atomic. Returns True if lock acquired.</span><br>
+    <span class="tok-kw">return</span> r.<span class="tok-fn">set</span>(<span class="tok-str">f"lock:{resource}"</span>, <span class="tok-str">"1"</span>, nx=<span class="tok-kw">True</span>, ex=ttl_seconds)
+      </div>
+    </div>
+
+    <h3>MongoDB &#8212; Flexible document queries</h3>
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">JavaScript (Node.js / MongoDB)</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <div class="code-content" data-code>
+<span class="tok-cmt">// Find Pro users who logged in after Jan 1 and have 2+ addresses</span><br>
+<span class="tok-kw">const</span> users = <span class="tok-kw">await</span> db.<span class="tok-fn">collection</span>(<span class="tok-str">'users'</span>).<span class="tok-fn">find</span>({<br>
+    <span class="tok-str">'plan.name'</span>: <span class="tok-str">'Pro'</span>,<br>
+    last_login: { $gte: <span class="tok-kw">new</span> <span class="tok-cls">Date</span>(<span class="tok-str">'2024-01-01'</span>) },<br>
+    <span class="tok-str">'addresses.1'</span>: { $exists: <span class="tok-kw">true</span> }  <span class="tok-cmt">// index 1 exists = at least 2 elements</span><br>
+}).<span class="tok-fn">sort</span>({ last_login: -<span class="tok-num">1</span> }).<span class="tok-fn">limit</span>(<span class="tok-num">100</span>).<span class="tok-fn">toArray</span>();<br>
+<br>
+<span class="tok-cmt">// Upsert: update if exists, insert if not -- great for activity tracking</span><br>
+<span class="tok-kw">await</span> db.<span class="tok-fn">collection</span>(<span class="tok-str">'users'</span>).<span class="tok-fn">updateOne</span>(<br>
+    { _id: userId },<br>
+    {<br>
+        $set: { last_seen: <span class="tok-kw">new</span> <span class="tok-cls">Date</span>(), status: <span class="tok-str">'active'</span> },<br>
+        $inc: { visit_count: <span class="tok-num">1</span> },         <span class="tok-cmt">// atomic increment</span><br>
+        $push: { activity_log: { ts: <span class="tok-kw">new</span> <span class="tok-cls">Date</span>(), action: <span class="tok-str">'page_view'</span> } }<br>
+    },<br>
+    { upsert: <span class="tok-kw">true</span> }<br>
+);<br>
+<br>
+<span class="tok-cmt">// Aggregation pipeline: group users by plan and count revenue</span><br>
+<span class="tok-kw">const</span> revenue = <span class="tok-kw">await</span> db.<span class="tok-fn">collection</span>(<span class="tok-str">'users'</span>).<span class="tok-fn">aggregate</span>([<br>
+    { $match: { status: <span class="tok-str">'active'</span> } },<br>
+    { $group: { _id: <span class="tok-str">'$plan.name'</span>, total: { $sum: <span class="tok-str">'$plan.price'</span> }, count: { $sum: <span class="tok-num">1</span> } } },<br>
+    { $sort: { total: -<span class="tok-num">1</span> } }<br>
+]).<span class="tok-fn">toArray</span>();
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: REAL WORLD -->
+<section id="real-world">
+  <div class="container">
+    <p class="section-label">From the Trenches</p>
+    <h2>What Real Companies Actually Use</h2>
+    <p>Because "I'd use a database" is not a system design answer. "I'd use PostgreSQL for user data with a Redis cache layer, S3 for media assets, and Cassandra for the activity feed" is.</p>
+
+    <div class="rw-item">
+      <strong>&#127869;&#65039; Netflix</strong>
+      <p style="font-size:14px;margin-top:6px;">Uses <strong>Cassandra</strong> for viewing history (1+ trillion requests/day &#8212; Cassandra was literally built for this). <strong>MySQL</strong> for billing (ACID required). <strong>S3</strong> for video files. <strong>EVCache</strong> (their own Redis-based fleet) for caching user preferences and recommendations across all data centers. <strong>Elasticsearch</strong> for search.</p>
+    </div>
+
+    <div class="rw-item">
+      <strong>&#128664; Uber</strong>
+      <p style="font-size:14px;margin-top:6px;"><strong>PostgreSQL</strong> for trip data (ACID needed &#8212; money involved). <strong>Cassandra</strong> for location and driver history (extreme write throughput, BASE acceptable). <strong>Redis</strong> for real-time driver locations (millions of lat/lng updates per minute). <strong>Schemaless</strong> (their own MySQL-based document store) for flexible trip metadata.</p>
+    </div>
+
+    <div class="rw-item">
+      <strong>&#128172; Discord</strong>
+      <p style="font-size:14px;margin-top:6px;">Started on <strong>MongoDB</strong>. Hit 100M messages/day and MongoDB couldn't scale writes. Migrated to <strong>Cassandra</strong>. Then migrated again to <strong>ScyllaDB</strong> (Cassandra-compatible, written in C++) &#8212; achieved 10x better performance at the same hardware cost. PostgreSQL for accounts and guilds. This is a perfect case study for "choose the right tool for the right scale."</p>
+    </div>
+
+    <div class="rw-item">
+      <strong>&#128241; Twitter/X</strong>
+      <p style="font-size:14px;margin-top:6px;"><strong>MySQL</strong> for core tweet storage (with aggressive sharding). <strong>Redis</strong> for timeline caching &#8212; your home feed is pre-computed and stored in Redis as a sorted list (the "fan-out on write" approach). <strong>Hadoop + HDFS</strong> for analytics on billions of tweets. <strong>Manhattan</strong> (their own real-time distributed KV store) for high-throughput per-user data.</p>
+    </div>
+
+    <div class="rw-item">
+      <strong>&#128279; LinkedIn</strong>
+      <p style="font-size:14px;margin-top:6px;"><strong>Espresso</strong> (their own distributed document store built on MySQL) for member profiles. <strong>Voldemort</strong> (their own KV store) for high-throughput lookups. A <strong>graph database</strong> (custom-built) for the professional connections graph &#8212; computing 2nd and 3rd-degree connections for 900M users is a non-trivial graph traversal problem. <strong>Kafka</strong> as the central data pipeline between all systems.</p>
+    </div>
+
+    <div class="meme-box">
+      <div class="meme-label">&#128512; Every startup's database evolution</div>
+      <div class="meme-dim">Week 1: &nbsp;&nbsp;"SQLite is fine for now"</div>
+      <div class="meme-dim">Month 3: &nbsp;"Let's upgrade to PostgreSQL"</div>
+      <div class="meme-dim">Year 1: &nbsp;&nbsp;"We should add Redis for caching"</div>
+      <div class="meme-dim">Year 2: &nbsp;&nbsp;"MongoDB for the new microservice"</div>
+      <div class="meme-dim">Year 3: &nbsp;&nbsp;"We need Cassandra + Kafka + Elasticsearch"</div>
+      <div class="meme-bold">Year 4: Hire a 5-person infra team just to keep it all running</div>
+      <div class="meme-dim">Year 5: Seriously considering writing a custom database</div>
+    </div>
+  </div>
+</section>
+<!-- SECTION 8: WHEN TO USE -->
+<section id="when">
+  <div class="container">
+    <p class="section-label">Decision Guide</p>
+    <h2>When to Use What</h2>
+    <p>This is the framework interviewers want to hear when they ask "what database would you use and why?"</p>
+
+    <div class="decision-grid">
+      <div class="decision-card relational">
+        <div class="use-when">&#128449;&#65039; Use Relational (PostgreSQL / MySQL) when...</div>
+        <ul>
+          <li>Your data has clear, structured relationships</li>
+          <li>You need ACID transactions (payments, bookings, inventory)</li>
+          <li>You require complex queries with JOINs and aggregations</li>
+          <li>Your schema is stable and known upfront</li>
+          <li>You need strong consistency and data integrity</li>
+          <li>Team is familiar with SQL (very high leverage)</li>
+        </ul>
+        <div class="company-pills"><span class="company-pill">Banking</span><span class="company-pill">E-commerce</span><span class="company-pill">Healthcare</span><span class="company-pill">ERPs</span></div>
+      </div>
+
+      <div class="decision-card document">
+        <div class="use-when">&#128196; Use Document (MongoDB / Firestore) when...</div>
+        <ul>
+          <li>Data is naturally hierarchical or nested</li>
+          <li>Different records have different fields</li>
+          <li>You read and write entire records at once</li>
+          <li>Schema will evolve rapidly during development</li>
+          <li>You don't need complex multi-collection joins</li>
+          <li>Your team thinks in JSON natively</li>
+        </ul>
+        <div class="company-pills"><span class="company-pill">CMSes</span><span class="company-pill">User Profiles</span><span class="company-pill">Catalogs</span><span class="company-pill">Event Logs</span></div>
+      </div>
+
+      <div class="decision-card kv">
+        <div class="use-when">&#128273; Use Key-Value (Redis / DynamoDB) when...</div>
+        <ul>
+          <li>You need sub-millisecond response times</li>
+          <li>Access pattern is always "get by known key"</li>
+          <li>Data is ephemeral or derived (caches, sessions)</li>
+          <li>You need rate limiting, pub/sub, or leaderboards</li>
+          <li>Caching results in front of a slower database</li>
+          <li>You need distributed locks or atomic counters</li>
+        </ul>
+        <div class="company-pills"><span class="company-pill">Caching</span><span class="company-pill">Sessions</span><span class="company-pill">Rate Limits</span><span class="company-pill">Real-time</span></div>
+      </div>
+
+      <div class="decision-card wide">
+        <div class="use-when">&#128202; Use Wide-Column (Cassandra / Bigtable) when...</div>
+        <ul>
+          <li>Extreme write throughput (millions of writes/sec)</li>
+          <li>Data is time-series or event-based</li>
+          <li>You need multi-region active-active availability</li>
+          <li>Query patterns are known and fixed upfront</li>
+          <li>Storing activity feeds, IoT telemetry, or logs at scale</li>
+          <li>Single-node SQL has hit its vertical scaling ceiling</li>
+        </ul>
+        <div class="company-pills"><span class="company-pill">IoT</span><span class="company-pill">Analytics</span><span class="company-pill">Activity Feeds</span><span class="company-pill">Time-series</span></div>
+      </div>
+    </div>
+
+    <div class="callout tip">
+      <span class="callout-icon">&#127919;</span>
+      <div>
+        <strong>In system design interviews:</strong> It's not only acceptable but <em>expected</em> to use multiple databases for different parts of the same system.
+        PostgreSQL for user profiles. Redis for caching. S3 for files. Elasticsearch for search. Cassandra for activity feeds.
+        <br><br>
+        The key is to <strong>justify each choice with its tradeoffs</strong>: "I'd use Cassandra here because we need high write throughput and the query patterns are fixed, and I'm willing to trade ad-hoc queries for that scale."
+        That's the answer that gets you hired.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 9: QUIZ -->
+<section id="quiz">
+  <div class="container">
+    <p class="section-label">Test Yourself</p>
+    <h2>Quiz Time &#129514;</h2>
+    <p>No pressure. But these exact questions show up in technical interviews. Prove it to yourself.</p>
+
+    <div class="quiz-progress">
+      <span id="quiz-score-text" class="quiz-score-display">0 / 5</span>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="quiz-progress-bar" style="width:0%"></div></div>
+      <span id="quiz-q-num" style="font-size:13px;color:var(--text-muted);">0 of 5 answered</span>
+    </div>
+
+    <div class="quiz">
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. A bank transfer deducts from Alice's account (step 1) then adds to Bob's account (step 2). The server crashes between steps. With proper ACID guarantees, what happens?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">A</span> Alice loses $200. Bob never gets it. Data is corrupted.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">B</span> The entire transaction is rolled back. Both accounts return to their original balances.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">C</span> Bob gets $200 anyway because the system retries automatically.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">D</span> The crash is prevented because ACID stops it from happening.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-1">
+          &#10003; <strong>Atomicity</strong> &#8212; "all or nothing." ACID guarantees that if any step in a transaction fails, the entire transaction is rolled back automatically to the state before it started. Alice keeps her $200. Nobody loses money. This is why transactions exist.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. You're designing a social media platform where each post can have wildly different metadata: some posts have locations, some have polls, some have product tags, some have audio. Which database fits best?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">A</span> Relational (MySQL) &#8212; create nullable columns for each possible field</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">B</span> Document (MongoDB) &#8212; each post document has only the fields it needs</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">C</span> Key-Value (Redis) &#8212; store all post data as a single JSON string per key</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">D</span> Graph (Neo4j) &#8212; model each metadata field as a separate node</button>
+        </div>
+        <div class="quiz-explanation" id="exp-2">
+          &#10003; <strong>Document (MongoDB)</strong> &#8212; When records are heterogeneous (different structure per item) and data is naturally nested, document databases are the right fit. Relational would require dozens of nullable columns or a messy EAV pattern. MongoDB lets each document have only the fields it needs &#8212; clean, efficient, and flexible.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. You add a B-Tree index on the <code>email</code> column to speed up login queries. What is the primary trade-off?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> SELECT queries on email become slower</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">B</span> The database can no longer store duplicate email values</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">C</span> INSERT, UPDATE, and DELETE operations on this table become slower</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">D</span> The index uses so much RAM that other queries are starved of memory</button>
+        </div>
+        <div class="quiz-explanation" id="exp-3">
+          &#10003; <strong>Write operations slow down.</strong> Every index must be updated whenever data changes &#8212; on every INSERT, UPDATE, and DELETE. You're deliberately trading write performance for read performance. This is why you don't blindly index every column &#8212; only what your real query patterns actually need.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">4. Your system uses Cassandra (an AP system per CAP theorem). During a network partition, a user writes a new profile picture. A read request comes in from a different region before the partition heals. What happens?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">A</span> The system refuses the read and returns an error until the partition heals</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">B</span> The write is automatically rejected to protect consistency</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,4)"><span class="opt-letter">C</span> The read returns the old profile picture; the new one will be visible eventually</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">D</span> The write and read are queued until all nodes agree</button>
+        </div>
+        <div class="quiz-explanation" id="exp-4">
+          &#10003; <strong>Eventually consistent.</strong> Cassandra prioritizes Availability (A) over Consistency (C). During a partition, it keeps serving requests &#8212; but the read may return stale data. Once the partition heals and replication catches up, all nodes converge to the correct (new) profile picture. This is the BASE model in practice.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">5. LinkedIn needs to show "People You May Know" &#8212; finding mutual connections between users in a graph of 900 million people. Which storage type is most appropriate for the connections data?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,5)"><span class="opt-letter">A</span> Relational (PostgreSQL) &#8212; store connections in a join table, use recursive CTEs</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,5)"><span class="opt-letter">B</span> Document (MongoDB) &#8212; store each user's connection list as an array in their document</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,5)"><span class="opt-letter">C</span> Wide-Column (Cassandra) &#8212; store connections as columns in a wide row</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,5)"><span class="opt-letter">D</span> Graph (Neo4j / custom graph store) &#8212; traversal is the native operation</button>
+        </div>
+        <div class="quiz-explanation" id="exp-5">
+          &#10003; <strong>Graph database.</strong> Multi-hop relationship traversal ("friends of friends who share your industry") is exactly what graph databases are optimized for. In PostgreSQL at 900M users, recursive JOINs would be catastrophically expensive. LinkedIn uses a custom-built graph store for precisely this reason. The right tool for the right job.
+        </div>
+      </div>
+    </div>
+
+    <div id="quiz-final" style="display:none;" class="callout tip">
+      <span class="callout-icon">&#127881;</span>
+      <div id="quiz-final-text"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="meme-box">
+      <div class="meme-label">&#127946; Parting wisdom</div>
+      <div class="meme-dim">Drake: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Using one database for everything because "keep it simple"</div>
+      <div class="meme-bold">Drake nod: Using the right tool for each part, justified with tradeoffs</div>
+    </div>
+    <p style="font-size:14px;color:var(--text-muted);text-align:center;margin-top:24px;">
+      That's Storage wrapped up. Next: <strong>Networking Fundamentals</strong> &#8212; how data actually travels between machines.
+    </p>
+    <div class="footer-nav">
+      <a href="../index.html">&#8592; Home</a>
+      <a href="2-networking.html">Networking &#8594;</a>
+    </div>
+  </div>
+</footer>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">&#8593;</button>
+
+<script>
+// Tab switching
+function switchTab(btn, tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tabId).classList.add('active');
+}
+
+// Accordion
+function toggleAccordion(item) {
+  const body = item.querySelector('.accordion-body');
+  const inner = item.querySelector('.accordion-body-inner');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.accordion-item').forEach(i => {
+    i.classList.remove('open');
+    i.querySelector('.accordion-body').style.maxHeight = '0';
+  });
+  if (!isOpen) {
+    item.classList.add('open');
+    body.style.maxHeight = inner.scrollHeight + 40 + 'px';
+  }
+}
+
+// Storage hierarchy animation
+function animateHierarchy() {
+  const bars = document.querySelectorAll('.hierarchy-bar[data-width]');
+  setTimeout(() => {
+    bars.forEach(bar => {
+      bar.style.width = bar.dataset.width;
+    });
+  }, 300);
+}
+
+// Intersection Observer for hierarchy animation
+const hierarchySection = document.getElementById('deep-dive');
+const observer = new IntersectionObserver(entries => {
+  if (entries[0].isIntersecting) { animateHierarchy(); observer.disconnect(); }
+}, { threshold: 0.2 });
+if (hierarchySection) observer.observe(hierarchySection);
+
+// ============================================================
+// Transaction Simulator
+// ============================================================
+let aliceBal = 1000, bobBal = 500, simRunning = false;
+
+function resetSim() {
+  aliceBal = 1000; bobBal = 500;
+  document.getElementById('bal-alice').textContent = '$1,000';
+  document.getElementById('bal-bob').textContent = '$500';
+  document.getElementById('acc-alice').className = 'account-card';
+  document.getElementById('acc-bob').className = 'account-card';
+  document.getElementById('sim-log').innerHTML = 'Click a button above to start the simulation...';
+  simRunning = false;
+}
+
+function updateBal(id, amount, animate) {
+  const el = document.getElementById('bal-' + id);
+  el.textContent = '$' + amount.toLocaleString();
+  if (animate) {
+    el.classList.remove('changed');
+    void el.offsetWidth;
+    el.classList.add('changed');
+  }
+}
+
+function log(msg, type) {
+  const el = document.getElementById('sim-log');
+  const s = document.createElement('span');
+  s.className = type ? 'log-' + type : '';
+  s.textContent = msg + '\n';
+  el.appendChild(s);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog() { document.getElementById('sim-log').innerHTML = ''; }
+
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+async function runSim(mode) {
+  if (simRunning) return;
+  simRunning = true;
+  resetSim();
+  await delay(80);
+  clearLog();
+
+  if (mode === 'acid') {
+    log('BEGIN TRANSACTION;', 'info');
+    await delay(500);
+    log('>> Step 1: Deducting $200 from Alice...', 'info');
+    await delay(800);
+    aliceBal -= 200;
+    updateBal('alice', aliceBal, true);
+    log('   Alice: $1,000 -> $800 [pending, not yet committed]', 'warn');
+    await delay(900);
+    log('>> Step 2: Adding $200 to Bob...', 'info');
+    await delay(800);
+    bobBal += 200;
+    updateBal('bob', bobBal, true);
+    log('   Bob: $500 -> $700 [pending, not yet committed]', 'warn');
+    await delay(600);
+    log('>> All steps succeeded. Committing...', 'info');
+    await delay(500);
+    log('COMMIT;', 'success');
+    log('\n[OK] Transaction complete and durable.', 'success');
+    log('[OK] Alice: $800  |  Bob: $700  |  Total: $1,500 (conserved)', 'success');
+    document.getElementById('acc-alice').className = 'account-card highlight-success';
+    document.getElementById('acc-bob').className = 'account-card highlight-success';
+
+  } else if (mode === 'acid-fail') {
+    log('BEGIN TRANSACTION;', 'info');
+    await delay(500);
+    log('>> Step 1: Deducting $200 from Alice...', 'info');
+    await delay(800);
+    aliceBal -= 200;
+    updateBal('alice', aliceBal, true);
+    document.getElementById('acc-alice').className = 'account-card highlight-danger';
+    log('   Alice: $1,000 -> $800 [in-memory only, NOT committed to disk]', 'warn');
+    await delay(900);
+    log('>> Step 2: Adding $200 to Bob...', 'info');
+    await delay(600);
+    log('   [FATAL] Network timeout. Server process killed. SIGKILL received.', 'error');
+    await delay(1000);
+    log('\n-- Server restarts. Checking write-ahead log (WAL)... --', 'warn');
+    await delay(800);
+    log('   WAL: Found incomplete transaction TXN-4821. No COMMIT recorded.', 'warn');
+    log('>> Initiating automatic ROLLBACK from WAL...', 'info');
+    await delay(700);
+    aliceBal = 1000;
+    updateBal('alice', aliceBal, true);
+    document.getElementById('acc-alice').className = 'account-card';
+    log('   Alice restored to $1,000', 'success');
+    log('\n[OK] ROLLBACK complete. Zero data loss.', 'success');
+    log('[OK] Alice: $1,000  |  Bob: $500  |  Total: $1,500 (conserved)', 'success');
+    log('\n    ACID saved the day. The write-ahead log is why.', 'success');
+
+  } else if (mode === 'no-acid') {
+    log('[WARN] No transaction wrapping. Executing raw statements.', 'warn');
+    await delay(600);
+    log('\n>> Statement 1: UPDATE accounts SET balance = balance - 200 WHERE id = 1;', 'info');
+    await delay(800);
+    aliceBal -= 200;
+    updateBal('alice', aliceBal, true);
+    document.getElementById('acc-alice').className = 'account-card highlight-danger';
+    log('   Executed and written to disk. Alice: $800.', 'success');
+    await delay(900);
+    log('\n>> Statement 2: UPDATE accounts SET balance = balance + 200 WHERE id = 2;', 'info');
+    await delay(500);
+    log('   [FATAL] Disk I/O error. Process terminated. OOM kill.', 'error');
+    await delay(1000);
+    log('\n-- Server restarts. No WAL. No transaction. Nothing to rollback. --', 'error');
+    await delay(800);
+    log('\n[FATAL] Current database state:', 'error');
+    log('   Alice: $800  (deduction was committed to disk)', 'error');
+    log('   Bob:   $500  (credit never happened)', 'error');
+    log('   Total: $1,300 -- $200 has VANISHED from existence.', 'error');
+    log('\n[FATAL] Data is now permanently inconsistent.', 'error');
+    log('        This is why ACID transactions exist.', 'warn');
+    document.getElementById('acc-bob').className = 'account-card highlight-danger';
+    document.getElementById('acc-alice').className = 'account-card highlight-danger';
+  }
+
+  simRunning = false;
+}
+
+// ============================================================
+// Quiz
+// ============================================================
+let quizScore = 0, questionsAnswered = 0;
+
+function checkAnswer(btn, isCorrect, qNum) {
+  const q = btn.closest('.quiz-question');
+  if (q.querySelector('.correct')) return;
+  questionsAnswered++;
+  q.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+  if (isCorrect) {
+    btn.classList.add('correct');
+    quizScore++;
+  } else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (o.getAttribute('onclick') && o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  const exp = document.getElementById('exp-' + qNum);
+  exp.classList.add('show', isCorrect ? 'correct-exp' : 'wrong-exp');
+  document.getElementById('quiz-score-text').textContent = quizScore + ' / 5';
+  document.getElementById('quiz-q-num').textContent = questionsAnswered + ' of 5 answered';
+  document.getElementById('quiz-progress-bar').style.width = (questionsAnswered / 5 * 100) + '%';
+
+  if (questionsAnswered === 5) {
+    const final = document.getElementById('quiz-final');
+    const finalText = document.getElementById('quiz-final-text');
+    final.style.display = 'flex';
+    const msgs = [
+      'Rough. Review the ACID and CAP sections again, then come back. You got this.',
+      'Decent start. Some concepts need another pass. Re-read the tabs section.',
+      'Not bad! A couple of gaps. The tradeoffs are starting to click.',
+      'Solid! You clearly understand the concepts. One or two edges to sharpen.',
+      'Perfect score! You understand storage tradeoffs at a level most engineers never reach. Ship it.'
+    ];
+    finalText.innerHTML = '<strong>' + quizScore + '/5 &#8212;</strong> ' + msgs[quizScore - 1];
+    final.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// Copy code
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('[data-code]');
+  navigator.clipboard.writeText(code.innerText || code.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// Scroll to top
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-top').classList.toggle('visible', window.scrollY > 400);
+});
+</script>
+</body>
+</html>

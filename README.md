@@ -1,5 +1,4 @@
-﻿```
-# 🏗️ System Design — Visual & Interactive Notes
+﻿# 🏗️ System Design — Visual & Interactive Notes
 
 > **Learn System Design the way it should be taught — with visuals, simulations, and zero boring walls of text.**
 
@@ -45,9 +44,7 @@ Each HTML file is **self-contained** (one file = everything) and includes:
 
 ## 🗂️ Project Structure
 
-
 ```
-
 SystemDesign/
 ├── index.html                  # 🏠 Home page — links to everything
 ├── 1-fundamentals/
@@ -65,8 +62,7 @@ SystemDesign/
 ├── messaging/
 │   └── ...
 └── real-systems/
-└── ...
-
+    └── ...
 ```
 
 ---
@@ -74,16 +70,17 @@ SystemDesign/
 ## 🚀 How to Use
 
 **Option 1 — Just open a file:**
+
 ```bash
 # Clone the repo
-git clone [https://github.com/moazzamaliakamonad-byte/System-Design.git](https://github.com/moazzamaliakamonad-byte/System-Design.git)
+git clone https://github.com/moazzamaliakamonad-byte/System-Design.git
 
 # Open any HTML file directly in your browser
 open 1-fundamentals/1-Storage.html
-
 ```
 
 **Option 2 — GitHub Pages:**
+
 Visit the live site at: `https://moazzamaliakamonad-byte.github.io/System-Design/`
 
 No build step. No install. No `npm install`. Just open and learn.
@@ -92,12 +89,16 @@ No build step. No install. No `npm install`. Just open and learn.
 
 ## 🤝 Contributing
 
-Found a bug? Want to add a topic? See [CONTRIBUTING.md](https://www.google.com/search?q=./CONTRIBUTING.md&utm_source=gemini) — contributions are very welcome!
+Found a bug? Want to add a topic? See [CONTRIBUTING.md](./CONTRIBUTING.md) — contributions are very welcome!
 
 ---
 
 ## 📄 License
 
-MIT License — see [LICENSE](https://www.google.com/search?q=./LICENSE&utm_source=gemini). Use freely, credit appreciated.
+MIT License — see [LICENSE](./LICENSE). Use freely, credit appreciated.
 
 ---
+
+<div align="center">
+  <sub>Built on the principle that if learning is boring, the content failed — not the learner.</sub>
+</div>

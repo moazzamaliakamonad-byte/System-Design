@@ -1,6 +1,4 @@
-﻿Here is the updated **`README.md`** reflecting your current folder structure and the modules created so far under fundamentals and networking:
-
-```markdown
+﻿```
 # 🏗️ System Design — Visual & Interactive Notes
 
 > **Learn System Design the way it should be taught — with visuals, simulations, and zero boring walls of text.**

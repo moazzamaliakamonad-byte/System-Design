@@ -1,0 +1,742 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Design — Visual &amp; Interactive Notes</title>
+  <meta name="description" content="A comprehensive, public library of interactive System Design notes. Featuring animated diagrams, live simulations, real-world case studies, and zero boring walls of text.">
+  <style>
+    :root {
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --surface-hover: #f5f5f4;
+      --border: #e7e5e4;
+      --border-subtle: #f5f5f4;
+      --text: #1c1917;
+      --text-secondary: #57534e;
+      --text-tertiary: #a8a29e;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --accent-border: #bfdbfe;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --success-border: #bbf7d0;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --warning-border: #fde68a;
+      --code-bg: #1c1917;
+      --radius-sm: 6px;
+      --radius: 10px;
+      --radius-lg: 16px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px -4px rgba(0,0,0,0.04);
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
+      --mono: "JetBrains Mono", "Fira Code", monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      width: 100%;
+    }
+
+    /* Navigation */
+    .nav {
+      background: rgba(250, 250, 249, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .nav-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 64px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 17px;
+      text-decoration: none;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .logo-badge {
+      font-size: 11px;
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid var(--accent-border);
+      font-weight: 600;
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .nav-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    .nav-link:hover { color: var(--text); }
+    .btn-github {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s;
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-github:hover {
+      background: var(--surface-hover);
+      border-color: #d6d3d1;
+      transform: translateY(-1px);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 72px 0 48px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .hero-title {
+      font-size: 3.2em;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      margin-bottom: 18px;
+      color: var(--text);
+    }
+    .hero-title .highlight {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-subtitle {
+      font-size: 1.25em;
+      color: var(--text-secondary);
+      max-width: 680px;
+      margin: 0 auto 36px;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+
+    /* Search & Filters */
+    .controls {
+      max-width: 720px;
+      margin: 0 auto 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .search-box {
+      position: relative;
+      width: 100%;
+    }
+    .search-input {
+      width: 100%;
+      padding: 14px 18px 14px 44px;
+      font-size: 15px;
+      font-family: inherit;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: all 0.2s;
+      box-shadow: var(--shadow-sm);
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+    }
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--text-tertiary);
+      pointer-events: none;
+    }
+    .filter-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .filter-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-pill:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+    .filter-pill.active {
+      background: var(--text);
+      color: var(--surface);
+      border-color: var(--text);
+    }
+
+    /* Feature Pillars */
+    .pillars {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 56px;
+    }
+    .pillar-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .pillar-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+      display: block;
+    }
+    .pillar-title {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+    .pillar-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* Module Section */
+    .module-group {
+      margin-bottom: 48px;
+    }
+    .module-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .module-num {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .module-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    /* Topics Grid */
+    .topics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+    .topic-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+    .topic-card.available:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      border-color: #cbd5e1;
+    }
+    .topic-card.disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      background: #fafaf9;
+    }
+    .card-top {
+      margin-bottom: 14px;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .card-status {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .status-live {
+      background: var(--success-light);
+      color: var(--success);
+      border: 1px solid var(--success-border);
+    }
+    .status-soon {
+      background: var(--surface-hover);
+      color: var(--text-tertiary);
+      border: 1px solid var(--border);
+    }
+    .card-time {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+    .card-title {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-arrow {
+      font-size: 16px;
+      color: var(--text-tertiary);
+      transition: transform 0.15s, color 0.15s;
+    }
+    .topic-card.available:hover .card-arrow {
+      transform: translateX(4px);
+      color: var(--accent);
+    }
+    .card-desc {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+    .card-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .card-tag {
+      font-size: 11px;
+      font-family: var(--mono);
+      background: var(--surface-hover);
+      color: var(--text-secondary);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      background: var(--surface);
+    }
+    .footer-text {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .footer-sub {
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    @media (max-width: 640px) {
+      .hero-title { font-size: 2.2em; }
+      .hero { padding: 48px 0 32px; }
+      .topics-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a href="index.html" class="logo">
+      <span>📐 System Design Notes</span>
+      <span class="logo-badge">Open Source</span>
+    </a>
+    <div class="nav-links">
+      <a href="#curriculum" class="nav-link">Curriculum</a>
+      <a href="CONTRIBUTING.md" class="nav-link">Contribute</a>
+      <a href="https://github.com/moazzamaliakamonad-byte/System-Design" target="_blank" rel="noreferrer" class="btn-github">
+        <span>⭐ GitHub</span>
+      </a>
+    </div>
+  </div>
+</header>
+<main class="container">
+  <section class="hero">
+    <div class="hero-badge">🚀 Interactive Architecture Curriculum</div>
+    <h1 class="hero-title">System Design, <span class="highlight">Deconstructed</span>.</h1>
+    <p class="hero-subtitle">
+      Self-contained, interactive HTML notes designed for clarity.
+      Watch live data flow animations, experiment with transaction simulators, and learn how Netflix, Uber, and Discord scale.
+    </p>
+
+    <div class="controls">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search concepts (e.g., ACID, Cassandra, Sharding, Load Balancer)..." autocomplete="off">
+      </div>
+      <div class="filter-pills" id="filterPills">
+        <button class="filter-pill active" data-category="all">All Topics</button>
+        <button class="filter-pill" data-category="fundamentals">1. Fundamentals</button>
+        <button class="filter-pill" data-category="networking">2. Networking</button>
+        <button class="filter-pill" data-category="databases">3. Databases &amp; Caching</button>
+        <button class="filter-pill" data-category="distributed">4. Distributed Patterns</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Pillars -->
+  <section class="pillars">
+    <div class="pillar-card">
+      <span class="pillar-icon">⚡</span>
+      <h3 class="pillar-title">Pure Zero-Dependency</h3>
+      <p class="pillar-desc">Single HTML files. No build steps, no CDNs, no external packages. Download or clone, double-click, and study anywhere.</p>
+    </div>
+    <div class="pillar-card">
+      <span class="pillar-icon">🎮</span>
+      <h3 class="pillar-title">Interactive Simulators</h3>
+      <p class="pillar-desc">Don't just read about rollbacks or cache invalidation. Trigger node crashes and watch write-ahead logs recover data live.</p>
+    </div>
+    <div class="pillar-card">
+      <span class="pillar-icon">🎯</span>
+      <h3 class="pillar-title">Battle-Tested Tradeoffs</h3>
+      <p class="pillar-desc">Every architecture choice comes with compromises. We detail exact real-world stories from Discord, Uber, Netflix, and X.</p>
+    </div>
+  </section>
+
+  <!-- Curriculum Grid -->
+  <section id="curriculum">
+
+    <!-- Module 1: Fundamentals -->
+    <div class="module-group" data-module="fundamentals">
+      <div class="module-header">
+        <span class="module-num">Module 01</span>
+        <h2 class="module-title">Fundamentals &amp; Core Concepts</h2>
+      </div>
+      <div class="topics-grid">
+        <a href="1-fundamentals/1-Storage.html" class="topic-card available" data-tags="storage sql nosql acid base sharding replication indexing mongodb redis cassandra">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 20 min read</span>
+            </div>
+            <h3 class="card-title">
+              1. Storage Paradigms &amp; Guarantees
+              <span class="card-arrow">→</span>
+            </h3>
+            <p class="card-desc">Relational, Document, Key-Value, Wide-Column, Graph. ACID vs. BASE, WAL transaction simulator, indexing, sharding, and real-world architectures.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Interactive Simulator</span>
+            <span class="card-tag">ACID vs BASE</span>
+            <span class="card-tag">PostgreSQL</span>
+            <span class="card-tag">Redis</span>
+            <span class="card-tag">Cassandra</span>
+          </div>
+        </a>
+
+        <div class="topic-card disabled" data-tags="scalability vertical horizontal load autoscaling">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">Coming Next</span>
+              <span class="card-time">⏱️ ~15 min</span>
+            </div>
+            <h3 class="card-title">2. Scalability: Vertical vs. Horizontal</h3>
+            <p class="card-desc">Scale-up limits, scale-out complexities, stateless architecture, shared-nothing systems, and bottleneck detection.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Stateless Services</span>
+            <span class="card-tag">Autoscaling</span>
+            <span class="card-tag">Capacity Planning</span>
+          </div>
+        </div>
+
+        <div class="topic-card disabled" data-tags="latency throughput p99 p95 slas slos bandwidth">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">Coming Soon</span>
+              <span class="card-time">⏱️ ~12 min</span>
+            </div>
+            <h3 class="card-title">3. Latency vs. Throughput &amp; SLA Math</h3>
+            <p class="card-desc">Understanding tail latency (p95/p99), Amdahl's law, Little's law, SLA/SLO calculation, and performance budgets.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">P99 Latency</span>
+            <span class="card-tag">SLOs</span>
+            <span class="card-tag">Bottlenecks</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 2: Networking -->
+    <div class="module-group" data-module="networking">
+      <div class="module-header">
+        <span class="module-num">Module 02</span>
+        <h2 class="module-title">Networking, Routing &amp; Edge Delivery</h2>
+      </div>
+      <div class="topics-grid">
+        <div class="topic-card disabled" data-tags="dns authoritative recursive anycast ttl resolution">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~15 min</span>
+            </div>
+            <h3 class="card-title">1. DNS: The Internet's Phonebook</h3>
+            <p class="card-desc">How domain resolution actually works: Recursive resolvers, Root servers, TLDs, Authoritative servers, Anycast routing, and GeoDNS.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">DNS Simulator</span>
+            <span class="card-tag">Anycast</span>
+            <span class="card-tag">Geo-Routing</span>
+          </div>
+        </div>
+
+        <div class="topic-card disabled" data-tags="load balancing l4 l7 round robin consistent hashing reverse proxy">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~18 min</span>
+            </div>
+            <h3 class="card-title">2. Load Balancing (L4 vs. L7)</h3>
+            <p class="card-desc">Reverse proxies, health checks, routing algorithms (Round Robin, Least Connections, Consistent Hashing), SSL termination.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">L4 vs L7</span>
+            <span class="card-tag">NGINX</span>
+            <span class="card-tag">HAProxy</span>
+          </div>
+        </div>
+
+        <div class="topic-card disabled" data-tags="cdn edge caching cloudflare pop cache invalidation">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~15 min</span>
+            </div>
+            <h3 class="card-title">3. CDNs &amp; Edge Caching</h3>
+            <p class="card-desc">Points of Presence (PoPs), Cache-Control headers, dynamic vs. static edge caching, and edge computing.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Cloudflare</span>
+            <span class="card-tag">Edge Nodes</span>
+            <span class="card-tag">Invalidation</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 3: Databases & Caching -->
+    <div class="module-group" data-module="databases">
+      <div class="module-header">
+        <span class="module-num">Module 03</span>
+        <h2 class="module-title">Databases, Sharding &amp; Caching Patterns</h2>
+      </div>
+      <div class="topics-grid">
+        <div class="topic-card disabled" data-tags="caching redis memcached cache-aside write-through write-back lru">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~20 min</span>
+            </div>
+            <h3 class="card-title">1. Cache Architectures &amp; Eviction</h3>
+            <p class="card-desc">Cache-aside, Read-through, Write-through, Write-behind. Eviction policies: LRU, LFU, FIFO, and cache stampede protection.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">LRU Simulation</span>
+            <span class="card-tag">Cache Stampede</span>
+            <span class="card-tag">Redis</span>
+          </div>
+        </div>
+
+        <div class="topic-card disabled" data-tags="consistent hashing distributed hash ring virtual nodes dynamo cassandra">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~18 min</span>
+            </div>
+            <h3 class="card-title">2. Consistent Hashing &amp; Virtual Nodes</h3>
+            <p class="card-desc">Solving the N-node reshuffle dilemma. Ring topology, virtual nodes, load balancing factor, and Dynamo-style ring partitioning.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Ring Visualizer</span>
+            <span class="card-tag">Virtual Nodes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module 4: Distributed Patterns -->
+    <div class="module-group" data-module="distributed">
+      <div class="module-header">
+        <span class="module-num">Module 04</span>
+        <h2 class="module-title">Distributed Systems &amp; Reliability</h2>
+      </div>
+      <div class="topics-grid">
+        <div class="topic-card disabled" data-tags="rate limiting token bucket leaky bucket sliding window 429">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~15 min</span>
+            </div>
+            <h3 class="card-title">1. Rate Limiting Strategies</h3>
+            <p class="card-desc">Token Bucket, Leaky Bucket, Fixed Window, Sliding Window Log, and Sliding Window Counter in distributed Redis clusters.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Bucket Simulator</span>
+            <span class="card-tag">HTTP 429</span>
+            <span class="card-tag">Redis Scripts</span>
+          </div>
+        </div>
+
+        <div class="topic-card disabled" data-tags="message queues kafka rabbitmq pub sub event driven">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-soon">In Queue</span>
+              <span class="card-time">⏱️ ~20 min</span>
+            </div>
+            <h3 class="card-title">2. Message Queues &amp; Event Streams</h3>
+            <p class="card-desc">Queue vs. Log-based pub/sub. Kafka partitions, consumer groups, exactly-once semantics, backpressure, and DLQs.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Kafka</span>
+            <span class="card-tag">RabbitMQ</span>
+            <span class="card-tag">Idempotency</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <p class="footer-text">
+      <strong>System Design — Visual &amp; Interactive Notes</strong> • Public &amp; Open Source
+    </p>
+    <p class="footer-sub">
+      Crafted with precision by <a href="https://github.com/moazzamaliakamonad-byte" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">Moazzam Ali</a>. Contributions welcome!
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Search & Filter Logic
+  const searchInput = document.getElementById('searchInput');
+  const filterPills = document.querySelectorAll('.filter-pill');
+  const topicCards = document.querySelectorAll('.topic-card');
+  const moduleGroups = document.querySelectorAll('.module-group');
+
+  let activeCategory = 'all';
+
+  function applyFilters() {
+    const query = searchInput.value.toLowerCase().trim();
+
+    moduleGroups.forEach(group => {
+      const moduleType = group.dataset.module;
+      const categoryMatch = (activeCategory === 'all' || activeCategory === moduleType);
+      
+      let visibleInGroup = 0;
+      const cards = group.querySelectorAll('.topic-card');
+
+      cards.forEach(card => {
+        const text = (card.textContent || '').toLowerCase();
+        const tags = (card.dataset.tags || '').toLowerCase();
+        const matchesQuery = !query || text.includes(query) || tags.includes(query);
+
+        if (categoryMatch && matchesQuery) {
+          card.style.display = 'flex';
+          visibleInGroup++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      // Show/hide entire module group if no matching cards
+      group.style.display = visibleInGroup > 0 ? 'block' : 'none';
+    });
+  }
+
+  searchInput.addEventListener('input', applyFilters);
+
+  filterPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterPills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      activeCategory = pill.dataset.category;
+      applyFilters();
+    });
+  });
+</script>
+</body>
+</html>

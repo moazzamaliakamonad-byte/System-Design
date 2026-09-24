@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prerequisites & Jargon — System Design</title>
+  <meta name="description" content="Before you design Netflix, you need to speak the language. Understand nodes, clusters, stateful vs stateless, and sync vs async.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efec;
+      --border: #e9e9e7;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav { border-bottom: 1px solid var(--border); padding: 14px 0; position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); z-index: 100; }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .topnav a { color: var(--accent); text-decoration: none; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid; }
+    .badge-beginner { color: var(--success); border-color: var(--success); background: var(--success-light); }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+    
+    .toc { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .callout { border-radius: var(--radius); padding: 16px 20px; margin: 20px 0; font-size: 14px; display: flex; gap: 12px; }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.5; }
+    .callout.info { background: var(--accent-light); border: 1px solid #bfdbfe; }
+    .callout.warning { background: var(--warning-light); border: 1px solid #fde68a; }
+    .callout.tip { background: var(--success-light); border: 1px solid #bbf7d0; }
+    
+    /* Meme Style */
+    .meme-box { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid #a855f7; border-radius: var(--radius-lg); padding: 20px 24px; margin: 32px 0; font-size: 15px; line-height: 1.6; }
+    .meme-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #9333ea; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .meme-setup { color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+    .meme-punchline { color: var(--text); font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.1); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
+
+    /* Simulators */
+    .sim-container { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
+    
+    /* Sync/Async Sim */
+    .sa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .sa-box { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
+    .sa-log { height: 120px; background: var(--bg-tertiary); border-radius: var(--radius); margin-top: 16px; padding: 12px; font-family: monospace; font-size: 12px; text-align: left; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.1); border-radius: 50%; border-top-color: var(--accent); animation: spin 1s ease-in-out infinite; margin-left: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Stateful Sim */
+    .state-demo { display: flex; flex-direction: column; gap: 16px; align-items: center; }
+    .server-node { background: var(--bg); border: 2px solid var(--text); padding: 20px; border-radius: var(--radius-lg); width: 100%; max-width: 300px; text-align: center; }
+    .memory-block { font-family: monospace; background: #fef08a; padding: 8px; border-radius: 4px; margin-top: 12px; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+    
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
+    .footer-nav a { display: flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; font-weight: 500; font-size: 14px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.15s; }
+    .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
+    
+    .encouragement { background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%); border: 1px solid #bfdbfe; border-radius: var(--radius-lg); padding: 32px; text-align: center; margin: 48px 0; }
+    .encouragement h3 { color: #1e3a8a; margin-bottom: 12px; }
+    .encouragement p { color: #3b82f6; font-size: 15px; max-width: 600px; margin: 0 auto; }
+
+    @media (max-width: 640px) { h1 { font-size: 2em; } .sa-grid { grid-template-columns: 1fr; } .footer-nav { flex-direction: column; } }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">1. Fundamentals</a>
+    <span class="sep">&#8250;</span>
+    <span>Prerequisites & Jargon</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-topic">Fundamentals</span>
+      <span class="badge badge-beginner">Start Here</span>
+      <span class="badge badge-time">&#9201; ~10 min read</span>
+    </div>
+    <h1>Prerequisites & Jargon</h1>
+    <p class="page-subtitle">
+      Before we scale databases across continents, we need to speak the same language. Here are the core concepts and vocabulary used throughout every system design module.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="meme-box">
+    <div class="meme-label">&#128128; LOOKS INSIDE</div>
+    <div class="meme-setup">Me confidently nodding in a meeting about deploying a "multi-node asynchronous stateless cluster"...</div>
+    <div class="meme-punchline">"I have no idea what any of those words mean."</div>
+  </div>
+
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#nodes">1. Nodes, Instances & Clusters</a></li>
+      <li><a href="#state">2. Stateful vs. Stateless (The Amnesia Test)</a></li>
+      <li><a href="#sync">3. Synchronous vs. Asynchronous (Blocking vs Non-Blocking)</a></li>
+      <li><a href="#storage">4. Memory (RAM) vs. Disk</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: NODES -->
+<section id="nodes">
+  <div class="container">
+    <p class="section-label">The Physical Hardware</p>
+    <h2>1. Nodes, Instances & Clusters</h2>
+    <p>System design uses a lot of fancy words to describe what is essentially just a computer sitting in a dark room.</p>
+    
+    <ul style="padding-left: 20px; margin-bottom: 24px;">
+      <li><strong>Node / Instance:</strong> A single running server (a computer). When someone says "spin up a new node" or "reboot the EC2 instance", they just mean turn on one computer.</li>
+      <li><strong>Cluster:</strong> A group of Nodes working together as a team. To the outside world, a cluster looks like one giant, powerful computer. If one node in the cluster dies, the others pick up the slack.</li>
+      <li><strong>Client:</strong> The thing asking for data. This is usually your web browser (Chrome), your mobile app, or another server.</li>
+      <li><strong>Server:</strong> The thing providing the data. It literally "serves" you what you asked for.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- SECTION 2: STATEFUL VS STATELESS -->
+<section id="state">
+  <div class="container">
+    <p class="section-label">Memory and Scalability</p>
+    <h2>2. Stateful vs. Stateless</h2>
+    <p>This is the secret to scaling web servers. "State" is just a fancy word for "memory" or "data about the current user."</p>
+
+    <div class="callout tip">
+      <span class="callout-icon">&#129417;</span>
+      <div>
+        <strong>Stateful (The Elephant):</strong> The server remembers you between requests. If you log in on Request 1, the server stores your user ID in its own local RAM. When you make Request 2, it knows who you are.<br><br>
+        <strong>Stateless (The Goldfish):</strong> The server has amnesia. Every single request is treated as a brand new interaction. If you want the server to know you are logged in, you must send your ID/Token with <em>every single request</em>.
+      </div>
+    </div>
+
+    <p><strong>Why does this matter?</strong> If your system is <em>Stateful</em>, and Node A remembers you, what happens when Node A crashes? You get logged out. If your system is <em>Stateless</em>, any node (Node A, B, or C) can handle your request because the node doesn't need to remember you. This makes scaling infinitely easier.</p>
+
+    <div class="sim-container" style="padding: 24px;">
+      <h3 style="text-align: center; margin-bottom: 20px;">The Amnesia Simulator</h3>
+      <div class="sa-grid">
+        <div class="sa-box">
+          <h4 style="margin-bottom: 12px;">Stateful Server</h4>
+          <button class="btn btn-primary" onclick="statefulReq()">Say Hello</button>
+          <div class="server-node" style="margin: 16px auto 0;">
+            Local RAM
+            <div class="memory-block" id="state-mem">Empty</div>
+          </div>
+        </div>
+        <div class="sa-box">
+          <h4 style="margin-bottom: 12px;">Stateless Server</h4>
+          <button class="btn btn-secondary" onclick="statelessReq()">Say Hello</button>
+          <div class="server-node" style="margin: 16px auto 0;">
+            Local RAM
+            <div class="memory-block" style="background:#e5e7eb;">Always Empty</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: SYNC VS ASYNC -->
+<section id="sync">
+  <div class="container">
+    <p class="section-label">Communication</p>
+    <h2>3. Synchronous vs. Asynchronous</h2>
+    <p>How do computers talk to each other? Just like humans, they have two methods:</p>
+
+    <ul style="padding-left: 20px; margin-bottom: 24px;">
+      <li><strong>Synchronous (Blocking):</strong> Like a phone call. I talk, you listen. I ask you a question, and I <em>wait on the line doing nothing</em> until you give me the answer. If you take 10 seconds to answer, I am blocked for 10 seconds.</li>
+      <li><strong>Asynchronous (Non-Blocking):</strong> Like a text message. I ask you a question, hit send, and go make a sandwich. You can reply whenever you finish processing it. My life is not blocked waiting for you.</li>
+    </ul>
+
+    <div class="sim-container" style="padding: 24px;">
+      <h3 style="text-align: center; margin-bottom: 20px;">The Blocking Simulator</h3>
+      <p style="font-size: 14px; text-align: center; color: var(--text-muted); margin-bottom: 24px;">Click the buttons to see how the client behaves while waiting for a 3-second server response.</p>
+      
+      <div class="sa-grid">
+        <div class="sa-box">
+          <button class="btn btn-primary" id="btn-sync" style="width:100%" onclick="runSync()">Make Sync Call (Blocks UI)</button>
+          <div class="sa-log" id="log-sync"></div>
+        </div>
+        <div class="sa-box">
+          <button class="btn btn-secondary" id="btn-async" style="width:100%" onclick="runAsync()">Make Async Call (Fires & Forgets)</button>
+          <div class="sa-log" id="log-async"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: MEMORY VS DISK -->
+<section id="storage">
+  <div class="container">
+    <p class="section-label">Hardware Basics</p>
+    <h2>4. Memory (RAM) vs. Disk</h2>
+    <p>When we talk about databases and caches in the upcoming files, you must understand the physical difference in hardware:</p>
+    
+    <div class="callout warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div>
+        <strong>RAM (Memory):</strong> Lightning fast. But it is <em>volatile</em>. If the server loses power or restarts, everything in RAM is deleted instantly. This is where <strong>Caches</strong> (like Redis) live.<br><br>
+        <strong>Disk (SSD/HDD):</strong> Much slower. But it is <em>persistent</em>. If the server loses power, the data survives. This is where <strong>Databases</strong> (like PostgreSQL) live.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENCOURAGEMENT -->
+<div class="container">
+  <div class="encouragement">
+    <h3>&#10024; Don't Sweat The Details Yet</h3>
+    <p>If some of this feels abstract, <strong>that is completely normal!</strong> System design is all about seeing the big picture. As you go through the next few modules on Storage, Scaling, and Latency, these terms will click into place naturally because you'll see them used to solve real-world problems. Just keep moving forward!</p>
+  </div>
+</div>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="footer-nav">
+      <a href="../index.html">&#8592; Home</a>
+      <a href="1-Storage.html">1. Storage &#8594;</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Stateful Simulator
+let stateCount = 0;
+function statefulReq() {
+  stateCount++;
+  const mem = document.getElementById('state-mem');
+  mem.innerHTML = `User said hello ${stateCount} times.`;
+  mem.style.background = '#86efac';
+  setTimeout(() => mem.style.background = '#fef08a', 300);
+}
+
+function statelessReq() {
+  const btn = document.querySelector('.sa-box:nth-child(2) button');
+  btn.textContent = "Sent Token: User says Hello (Count: 1)";
+  btn.style.background = '#d1d5db';
+  setTimeout(() => {
+    btn.textContent = "Say Hello";
+    btn.style.background = '';
+  }, 1000);
+}
+
+// Sync/Async Simulator
+function addLog(elementId, msg) {
+  const log = document.getElementById(elementId);
+  const div = document.createElement('div');
+  div.innerHTML = msg;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function runSync() {
+  const btn = document.getElementById('btn-sync');
+  if (btn.disabled) return; // Prevent multiple clicks while blocking
+  
+  btn.disabled = true;
+  btn.innerHTML = 'Waiting on Server... <div class="spinner"></div>';
+  addLog('log-sync', `<span style="color:#2563eb;">[Client]</span> Sent request. UI is now frozen...`);
+  
+  // Simulate blocking behavior by disabling the other button too for effect
+  document.getElementById('btn-async').disabled = true;
+  
+  setTimeout(() => {
+    addLog('log-sync', `<span style="color:#16a34a;">[Server]</span> Response received after 3s.`);
+    btn.disabled = false;
+    document.getElementById('btn-async').disabled = false;
+    btn.innerHTML = 'Make Sync Call (Blocks UI)';
+  }, 3000);
+}
+
+let asyncCounter = 0;
+function runAsync() {
+  asyncCounter++;
+  const currentReq = asyncCounter;
+  
+  addLog('log-async', `<span style="color:#2563eb;">[Client]</span> Fired request #${currentReq}. Moving on...`);
+  
+  setTimeout(() => {
+    addLog('log-async', `<span style="color:#16a34a;">[Server]</span> Finished processing #${currentReq}!`);
+  }, 2000 + Math.random() * 1000); // Random delay between 2-3s
+}
+</script>
+</body>
+</html>

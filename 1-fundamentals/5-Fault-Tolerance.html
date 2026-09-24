@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fault Tolerance & Redundancy — System Design</title>
+  <meta name="description" content="Master system reliability. Learn about Single Points of Failure (SPOF), Active-Passive redundancy, leader election, and automated replica promotion.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efec;
+      --border: #e9e9e7;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+      position: sticky;
+      top: 0;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .topnav a { color: var(--accent); text-decoration: none; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+      text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid;
+    }
+    .badge-beginner { color: var(--success); border-color: var(--success); background: var(--success-light); }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    p:last-child { margin-bottom: 0; }
+    
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px;
+    }
+    .hook-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 24px; margin: 24px 0; font-size: 1.05em;
+    }
+    .hook-box .emoji { font-size: 1.8em; margin-bottom: 8px; display: block; }
+    
+    .toc { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+
+    .tabs { margin: 32px 0; }
+    .tab-list { display: flex; gap: 4px; border-bottom: 2px solid var(--border); overflow-x: auto; padding-bottom: 0; }
+    .tab-btn { padding: 10px 18px; border: none; background: none; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; white-space: nowrap; border-radius: var(--radius) var(--radius) 0 0; }
+    .tab-btn:hover { color: var(--text); background: var(--bg-secondary); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-panel { display: none; border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius-lg) var(--radius-lg); padding: 32px; background: var(--bg); }
+    .tab-panel.active { display: block; animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 20px; border-radius: var(--radius); border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; font-family: inherit;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #b91c1c; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    
+    .callout {
+      border-radius: var(--radius); padding: 16px 20px;
+      margin: 20px 0; font-size: 14px; display: flex; gap: 12px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.5; }
+    .callout.info { background: var(--accent-light); border: 1px solid #bfdbfe; }
+    .callout.warning { background: var(--warning-light); border: 1px solid #fde68a; }
+    .callout.tip { background: var(--success-light); border: 1px solid #bbf7d0; }
+    .callout.danger { background: var(--danger-light); border: 1px solid #fecaca; }
+    
+    .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .code-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 16px; background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .code-lang { font-size: 11px; color: #7f849c; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .copy-btn {
+      font-size: 11px; color: #7f849c; background: none;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;
+      padding: 3px 8px; cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .copy-btn:hover { color: var(--code-text); border-color: rgba(255,255,255,0.3); }
+    .code-content {
+      padding: 20px; font-family: 'JetBrains Mono','Fira Code',monospace;
+      font-size: 13px; line-height: 1.8; overflow-x: auto; color: var(--code-text);
+      margin: 0;
+    }
+    .tok-kw { color: #cba6f7; }
+    .tok-fn { color: #89b4fa; }
+    .tok-str { color: #a6e3a1; }
+    .tok-num { color: #fab387; }
+    .tok-cmt { color: #6c7086; font-style: italic; }
+    .tok-cls { color: #f9e2af; }
+    .tok-op { color: #89dceb; }
+
+    /* Youtuber / Cutaway Meme Style */
+    .meme-box {
+      background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid #a855f7;
+      border-radius: var(--radius-lg); padding: 20px 24px; margin: 32px 0;
+      font-size: 15px; line-height: 1.6; position: relative;
+    }
+    .meme-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #9333ea; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .meme-setup { color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+    .meme-punchline { color: var(--text); font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.1); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
+
+    /* Failure Simulator */
+    .sim-container { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
+    .arch-grid { display: flex; flex-direction: column; gap: 24px; align-items: center; margin-top: 24px; }
+    
+    .lb-node { background: var(--bg); border: 2px solid var(--text); padding: 12px 24px; border-radius: var(--radius); font-weight: 700; z-index: 2; position: relative; }
+    
+    .db-cluster { display: flex; gap: 24px; width: 100%; justify-content: center; position: relative; }
+    .db-node { 
+      background: var(--bg); border: 2px solid var(--text); padding: 16px; border-radius: 50%; width: 100px; height: 100px; 
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 13px; font-weight: 600; 
+      transition: all 0.3s; position: relative; z-index: 2;
+    }
+    .db-node.master { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 4px rgba(37,99,235,0.2); }
+    .db-node.dead { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    
+    .db-node::after { content: ''; position: absolute; font-size: 24px; font-weight: 800; color: var(--danger); opacity: 0; transition: opacity 0.3s; }
+    .db-node.dead::after { content: 'X'; opacity: 1; }
+    
+    .db-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-top: 4px; }
+    
+    .traffic-arrow { width: 2px; height: 40px; background: var(--accent); margin: 0 auto; position: relative; }
+    .traffic-arrow::after { content: '▼'; position: absolute; bottom: -10px; left: -5px; color: var(--accent); font-size: 12px; }
+    
+    .sim-log { background: var(--code-bg); color: var(--code-text); padding: 12px; border-radius: var(--radius); font-family: monospace; font-size: 12px; height: 100px; overflow-y: auto; margin-top: 24px; display: flex; flex-direction: column; gap: 4px; }
+    .log-info { color: #89b4fa; }
+    .log-warn { color: #f9e2af; }
+    .log-err { color: #f38ba8; }
+    .log-succ { color: #a6e3a1; }
+
+    /* Quiz */
+    .quiz-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .quiz-score-display { font-weight: 700; font-size: 1.1em; }
+    .progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 16px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
+    .quiz-q-text { font-weight: 600; font-size: 15px; margin-bottom: 16px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; background: var(--bg); font-size: 14px; text-align: left; width: 100%; font-family: inherit; }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #15803d; font-weight: 600; }
+    .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option .opt-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--bg-secondary); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .quiz-explanation { margin-top: 12px; padding: 12px 16px; border-radius: var(--radius); font-size: 14px; display: none; line-height: 1.6; }
+    .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
+    .quiz-explanation.correct-exp { background: var(--success-light); color: #15803d; border-left: 3px solid var(--success); }
+    .quiz-explanation.wrong-exp { background: var(--danger-light); color: #b91c1c; border-left: 3px solid var(--danger); }
+
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
+    .footer-nav a { display: flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; font-weight: 500; font-size: 14px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.15s; }
+    .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
+    .scroll-top { position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px; background: var(--accent); color: white; border-radius: 50%; border: none; cursor: pointer; font-size: 18px; display: none; align-items: center; justify-content: center; box-shadow: var(--shadow-md); transition: all 0.2s; z-index: 50; }
+    .scroll-top.visible { display: flex; }
+    .scroll-top:hover { transform: translateY(-2px); background: #1d4ed8; }
+
+    @media (max-width: 640px) { h1 { font-size: 2em; } .footer-nav { flex-direction: column; } .db-cluster { flex-direction: column; align-items: center; gap: 16px; } }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">1. Fundamentals</a>
+    <span class="sep">&#8250;</span>
+    <span>Fault Tolerance & Redundancy</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-topic">Fundamentals</span>
+      <span class="badge badge-beginner">Deep Dive Masterclass</span>
+      <span class="badge badge-time">&#9201; ~30 min read</span>
+    </div>
+    <h1>Fault Tolerance & Redundancy</h1>
+    <p class="page-subtitle">
+      Everything fails. Hardware catches fire, network cables get sliced by backhoes, and interns drop production tables. Welcome to the art of designing systems that survive catastrophe.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="meme-box">
+    <div class="meme-label">&#128269; LOOKS INSIDE</div>
+    <div class="meme-setup">Looks inside "High Availability Multi-Region Enterprise Architecture".</div>
+    <div class="meme-punchline">It's a single Amazon RDS instance running in `us-east-1` that hasn't been backed up since 2019. 💀</div>
+  </div>
+
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#spof">1. Single Points of Failure (SPOFs)</a></li>
+      <li><a href="#redundancy">2. Redundancy: Active-Active vs. Active-Passive</a></li>
+      <li><a href="#detection">3. Failure Detection (Heartbeats)</a></li>
+      <li><a href="#recovery">4. Interactive: Automated Replica Promotion</a></li>
+      <li><a href="#code">5. Python Code: Exponential Backoff & Jitter</a></li>
+      <li><a href="#quiz">6. Quiz &#129514;</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: SPOF -->
+<section id="spof">
+  <div class="container">
+    <p class="section-label">The Core Problem</p>
+    <h2>1. Single Points of Failure (SPOF)</h2>
+    <p>A Single Point of Failure (SPOF) is any component in your architecture that, if it dies, takes the entire system down with it. In modern system design, having a SPOF is the ultimate cardinal sin.</p>
+
+    <div class="callout warning">
+      <span class="callout-icon">&#10060;</span>
+      <div><strong>Failure Modes Apply Everywhere:</strong> A SPOF isn't just a database. If you have 100 API servers and a massive replicated database, but they all route through a <em>single Load Balancer</em> or rely on a <em>single Redis Cache node</em>—that node is a SPOF. If the cache dies, your system dies.</div>
+    </div>
+
+    <h3>The Analogy: The House Key</h3>
+    <p>Having a SPOF is like having only one physical key to your house. If you lose it, you are completely locked out. Redundancy is giving a spare key to your neighbor, hiding one under a rock, and installing a keypad lock.</p>
+  </div>
+</section>
+
+<!-- SECTION 2: REDUNDANCY -->
+<section id="redundancy">
+  <div class="container">
+    <p class="section-label">Architectural Patterns</p>
+    <h2>2. Redundancy: How to Have "Spares"</h2>
+    <p>To eliminate SPOFs, we deploy multiple copies of our components. But how do these copies interact? We use two primary strategies:</p>
+
+    <div class="tabs">
+      <div class="tab-list" role="tablist">
+        <button class="tab-btn active" role="tab" onclick="switchTab(this,'active-passive')">Active-Passive (The Spare Tire)</button>
+        <button class="tab-btn" role="tab" onclick="switchTab(this,'active-active')">Active-Active (The Dual Engine)</button>
+      </div>
+
+      <div id="tab-active-passive" class="tab-panel active">
+        <h3>Active-Passive (Master-Slave)</h3>
+        <p>You have a Primary (Active) node handling 100% of the traffic. You also have a Secondary (Passive) node sitting idle, silently syncing data from the Primary. It does no work until the Primary dies.</p>
+        <ul style="padding-left:20px; margin-top:12px;">
+          <li><strong>Pros:</strong> Very simple to build. No data collision issues (only one node writes at a time).</li>
+          <li><strong>Cons:</strong> Wastes money (you pay for a server that does nothing). Takes time to swap over during a crash (downtime).</li>
+          <li><strong>Analogy:</strong> A spare tire in your trunk. It saves you, but you have to pull over and stop driving to put it on.</li>
+        </ul>
+      </div>
+
+      <div id="tab-active-active" class="tab-panel">
+        <h3>Active-Active (Multi-Master)</h3>
+        <p>Both Node A and Node B handle live traffic simultaneously. They actively process requests and constantly synchronize their state with each other over the network.</p>
+        <ul style="padding-left:20px; margin-top:12px;">
+          <li><strong>Pros:</strong> Zero downtime during a crash (the load balancer just stops sending traffic to the dead node). Full utilization of hardware.</li>
+          <li><strong>Cons:</strong> Extremely complex to engineer. What happens if Node A and Node B try to overwrite the exact same database row at the exact same millisecond? (Conflict resolution).</li>
+          <li><strong>Analogy:</strong> A dual-engine commercial airplane. If one engine explodes, the plane keeps flying seamlessly on the remaining engine.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: DETECTION -->
+<section id="detection">
+  <div class="container">
+    <p class="section-label">How Systems "Know"</p>
+    <h2>3. Failure Detection (Heartbeats)</h2>
+    <p>If a server catches fire, it obviously cannot send an alert saying "I am on fire." So how does the Load Balancer or the Database Cluster know a node is dead?</p>
+    
+    <p>They use <strong>Heartbeats</strong>. Every few seconds, components send a tiny "ping" across the network (like yelling "Marco!"). If the receiving node replies with a "pong" ("Polo!"), it is healthy. If the node misses 3 consecutive heartbeats, the cluster formally declares it dead and cuts off its traffic.</p>
+  </div>
+</section>
+
+<!-- SECTION 4: SIMULATOR (REPLICA PROMOTION) -->
+<section id="recovery">
+  <div class="container">
+    <p class="section-label">Interactive Failover</p>
+    <h2>4. Leader Election & Replica Promotion</h2>
+    <p>When an Active-Passive database setup detects that the Primary Master has died, the system must automatically execute <strong>Replica Promotion</strong>. The cluster holds an automated "election", picks the most up-to-date Read Replica, and promotes it to become the new Master[cite: 11].</p>
+
+    <div class="sim-container">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3>&#9888;&#65039; Database Cluster Simulator</h3>
+        <button class="btn btn-danger" id="sim-btn" onclick="triggerFailover()">Kill Master DB</button>
+      </div>
+      
+      <p style="font-size:14px; color:var(--text-muted);">Watch the system detect the failure via missed heartbeats, sever the connection, and promote a Replica to restore write capability.</p>
+
+      <div class="arch-grid">
+        <div class="lb-node">Application Server</div>
+        
+        <div class="traffic-arrow" id="main-arrow"></div>
+        
+        <div class="db-cluster">
+          <div class="db-node master" id="node-master">
+            Primary DB
+            <div class="db-label" id="label-master">Accepts Writes</div>
+          </div>
+          
+          <div class="db-node" id="node-rep1">
+            Replica 1
+            <div class="db-label" id="label-rep1">Read-Only Sync</div>
+          </div>
+          
+          <div class="db-node" id="node-rep2">
+            Replica 2
+            <div class="db-label" id="label-rep2">Read-Only Sync</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sim-log" id="sim-log">
+        <div class="log-info">[System] Cluster operating normally. Heartbeats active.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: CODE -->
+<section id="code">
+  <div class="container">
+    <p class="section-label">Defensive Programming</p>
+    <h2>5. Python Code: Exponential Backoff</h2>
+    <p>Failures are often transient (a brief network blip). If your code immediately crashes when a database request fails, you lack fault tolerance. However, if your code retries immediately in a loop (a "Retry Storm"), you might DDoS your own struggling database.</p>
+    <p>The solution is <strong>Exponential Backoff with Jitter</strong>. You retry, but you wait progressively longer between each attempt (1s, 2s, 4s, 8s), adding random noise (jitter) so hundreds of clients don't retry at the exact same millisecond.</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre class="code-content" data-code>
+<span class="tok-kw">import</span> time
+<span class="tok-kw">import</span> random
+<span class="tok-kw">import</span> requests
+
+<span class="tok-kw">def</span> <span class="tok-fn">fetch_with_backoff</span>(url, max_retries=<span class="tok-num">5</span>):
+    base_delay = <span class="tok-num">1</span>  <span class="tok-cmt"># Start with a 1 second delay</span>
+    
+    <span class="tok-kw">for</span> attempt <span class="tok-kw">in</span> <span class="tok-cls">range</span>(max_retries):
+        <span class="tok-kw">try</span>:
+            <span class="tok-cmt"># Attempt the network call</span>
+            response = requests.<span class="tok-fn">get</span>(url, timeout=<span class="tok-num">3</span>)
+            response.<span class="tok-fn">raise_for_status</span>()
+            <span class="tok-kw">return</span> response.json()
+            
+        <span class="tok-kw">except</span> requests.RequestException <span class="tok-kw">as</span> e:
+            <span class="tok-fn">print</span>(<span class="tok-str">f"Attempt {attempt + 1} failed: {e}"</span>)
+            
+            <span class="tok-kw">if</span> attempt == max_retries - <span class="tok-num">1</span>:
+                <span class="tok-fn">print</span>(<span class="tok-str">"Max retries exhausted. Failing gracefully."</span>)
+                <span class="tok-kw">raise</span>  <span class="tok-cmt"># Circuit broken, escalate failure</span>
+            
+            <span class="tok-cmt"># Exponential backoff: 1s, 2s, 4s, 8s...</span>
+            sleep_time = base_delay * (<span class="tok-num">2</span> ** attempt)
+            
+            <span class="tok-cmt"># Add Jitter: random noise between 0 and 1000ms</span>
+            <span class="tok-cmt"># Prevents the "Thundering Herd" problem</span>
+            jitter = random.<span class="tok-fn">uniform</span>(<span class="tok-num">0</span>, <span class="tok-num">1</span>)
+            final_delay = sleep_time + jitter
+            
+            <span class="tok-fn">print</span>(<span class="tok-str">f"Backing off for {final_delay:.2f} seconds..."</span>)
+            time.<span class="tok-fn">sleep</span>(final_delay)</pre>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: QUIZ -->
+<section id="quiz">
+  <div class="container">
+    <p class="section-label">Knowledge Verification</p>
+    <h2>6. Quiz Time &#129514;</h2>
+
+    <div class="quiz-progress">
+      <span id="quiz-score-text" class="quiz-score-display">0 / 4</span>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="quiz-progress-bar" style="width:0%"></div></div>
+      <span id="quiz-q-num" style="font-size:13px;color:var(--text-muted);">0 of 4 answered</span>
+    </div>
+
+    <div class="quiz">
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. What is the primary disadvantage of an Active-Active architecture compared to Active-Passive?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">A</span> Active-Active wastes money because one server sits idle.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">B</span> Active-Active introduces immense engineering complexity regarding data synchronization and write collisions.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">C</span> Active-Active requires manual intervention to fail over.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-1">
+          &#10003; <strong>Data collision complexity.</strong> Because both nodes handle live write traffic simultaneously, ensuring they don't overwrite each other's data (split-brain scenarios) requires advanced distributed systems logic.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. How does a load balancer technically determine if a backend server has died?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">A</span> By checking the server's CPU temperature.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">B</span> By sending periodic "Heartbeat" network requests (pings) and listening for a successful HTTP 200 response.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">C</span> By waiting for a user to report a 500 Internal Server Error.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-2">
+          &#10003; <strong>Heartbeats.</strong> Health checks (heartbeats) are the standard way distributed systems monitor node vitality. Missed heartbeats equal a dead node.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. In a database failure scenario, what is "Replica Promotion"?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">A</span> Reconfiguring a read-only slave node to become the new primary master node that accepts write traffic.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">B</span> Deleting all data on the replica and restarting the server.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">C</span> Routing traffic away from the cache directly to the database.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-3">
+          &#10003; <strong>Promoting the slave.</strong> When the primary dies, the system elects the most up-to-date read-replica and grants it write-authority to take over as the new primary master[cite: 11].
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">4. Why must we add "Jitter" (randomness) to Exponential Backoff retry loops?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">A</span> To make the code run faster.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">B</span> Because Python's <code>time.sleep()</code> function requires a floating point number.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,4)"><span class="opt-letter">C</span> To prevent the "Thundering Herd" problem, where thousands of disconnected clients retry at the exact same millisecond and DDoS the recovering server.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-4">
+          &#10003; <strong>Preventing Thundering Herds.</strong> Without randomness, a brief 2-second outage could cause 10,000 clients to all retry at exactly the 3-second mark, instantly crashing the server again.
+        </div>
+      </div>
+    </div>
+
+    <div id="quiz-final" style="display:none;" class="callout tip">
+      <span class="callout-icon">&#127881;</span>
+      <div id="quiz-final-text"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="meme-box" style="text-align:center;">
+      <div class="meme-label" style="justify-content:center;">&#128187; END OF FAULT TOLERANCE</div>
+      <div class="meme-setup">Me deploying my code directly to production on a Friday at 4:55 PM without any redundancy, fallback plans, or automated tests:</div>
+      <div class="meme-punchline" style="margin-top:8px;">"I live life on the edge. (My pager is going off)" 🔥</div>
+    </div>
+    <div class="footer-nav">
+      <a href="4-Latency-Throughput.html">&#8592; Latency & Throughput</a>
+      <a href="#">CAP Theorem &#8594;</a>
+    </div>
+  </div>
+</footer>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Scroll to top">&#8593;</button>
+
+<script>
+// --- UI Helpers ---
+function switchTab(btn, tabId) {
+  const container = btn.closest('.tabs');
+  container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  container.querySelector('#tab-' + tabId).classList.add('active');
+}
+
+function toggleAccordion(item) {
+  const body = item.querySelector('.accordion-body');
+  const inner = item.querySelector('.accordion-body-inner');
+  const isOpen = item.classList.contains('open');
+  document.querySelectorAll('.accordion-item').forEach(i => {
+    if(i !== item) { i.classList.remove('open'); i.querySelector('.accordion-body').style.maxHeight = '0'; }
+  });
+  if (!isOpen) {
+    item.classList.add('open');
+    setTimeout(() => { body.style.maxHeight = inner.scrollHeight + 50 + 'px'; }, 10);
+  } else {
+    item.classList.remove('open');
+    body.style.maxHeight = '0';
+  }
+}
+
+function copyCode(btn) {
+  const code = btn.closest('.code-block').querySelector('[data-code]');
+  navigator.clipboard.writeText(code.innerText || code.textContent).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 2000);
+  });
+}
+
+// --- Failover Simulator ---
+let simActive = false;
+function logSim(msg, type='info') {
+  const log = document.getElementById('sim-log');
+  const el = document.createElement('div');
+  el.className = `log-${type}`;
+  el.textContent = `[System] ${msg}`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function triggerFailover() {
+  if (simActive) return;
+  simActive = true;
+  
+  const btn = document.getElementById('sim-btn');
+  btn.disabled = true;
+  btn.textContent = "Simulating Catastrophe...";
+  
+  const master = document.getElementById('node-master');
+  const arrow = document.getElementById('main-arrow');
+  const rep1 = document.getElementById('node-rep1');
+  
+  // 1. Kill Master
+  setTimeout(() => {
+    master.classList.remove('master');
+    master.classList.add('dead');
+    document.getElementById('label-master').textContent = "OFFLINE";
+    arrow.style.background = 'var(--danger)';
+    arrow.style.opacity = '0.3';
+    logSim("CRITICAL: Primary DB missed 3 heartbeats. Marking DEAD.", "err");
+  }, 500);
+  
+  // 2. Load Balancer detects and severs
+  setTimeout(() => {
+    logSim("App Server severed connection to Primary.", "warn");
+    logSim("Initiating Zookeeper Leader Election protocol...", "warn");
+  }, 1800);
+  
+  // 3. Promote Replica 1
+  setTimeout(() => {
+    rep1.classList.add('master');
+    document.getElementById('label-rep1').textContent = "NEW PRIMARY (Writes)";
+    logSim("Replica 1 won election. PROMOTED to Primary.", "succ");
+  }, 3500);
+  
+  // 4. Reroute Traffic
+  setTimeout(() => {
+    arrow.style.background = 'var(--success)';
+    arrow.style.opacity = '1';
+    logSim("Traffic successfully rerouted. System recovered.", "succ");
+    btn.textContent = "Recovery Complete (Refresh page to reset)";
+  }, 4500);
+}
+
+// --- Quiz Logic ---
+let quizScore = 0, questionsAnswered = 0;
+function checkAnswer(btn, isCorrect, qNum) {
+  const q = btn.closest('.quiz-question');
+  if (q.querySelector('.correct')) return;
+  questionsAnswered++;
+  q.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+  if (isCorrect) { btn.classList.add('correct'); quizScore++; } 
+  else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (o.getAttribute('onclick') && o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  const exp = document.getElementById('exp-' + qNum);
+  exp.classList.add('show', isCorrect ? 'correct-exp' : 'wrong-exp');
+  document.getElementById('quiz-score-text').textContent = quizScore + ' / 4';
+  document.getElementById('quiz-q-num').textContent = questionsAnswered + ' of 4 answered';
+  document.getElementById('quiz-progress-bar').style.width = (questionsAnswered / 4 * 100) + '%';
+
+  if (questionsAnswered === 4) {
+    const final = document.getElementById('quiz-final');
+    const finalText = document.getElementById('quiz-final-text');
+    final.style.display = 'flex';
+    const msgs = [
+      'Rough start. Re-read the SPOF and redundancy sections.',
+      'Decent attempt! A couple gaps regarding backoff or leader election.',
+      'Solid! You understand fault tolerance very well.',
+      'Perfect score! You are ready to design multi-region resilient architecture. Ship it.'
+    ];
+    finalText.innerHTML = '<strong>' + quizScore + '/4 &#8212;</strong> ' + msgs[quizScore];
+    final.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-top').classList.toggle('visible', window.scrollY > 400);
+});
+</script>
+</body>
+</html>

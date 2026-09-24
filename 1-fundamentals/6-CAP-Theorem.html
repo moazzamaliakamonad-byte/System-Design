@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CAP Theorem — System Design Fundamentals</title>
+  <meta name="description" content="Master the CAP Theorem. Understand the inescapable trade-off between Consistency and Availability during a network partition.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efec;
+      --border: #e9e9e7;
+      --text: #1a1a1a;
+      --text-muted: #6b6b6b;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e1e2e;
+      --code-text: #cdd6f4;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav { border-bottom: 1px solid var(--border); padding: 14px 0; position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); z-index: 100; }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
+    .topnav a { color: var(--accent); text-decoration: none; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid; }
+    .badge-beginner { color: var(--success); border-color: var(--success); background: var(--success-light); }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+    h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 12px; }
+    p { margin-bottom: 16px; }
+    
+    .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+    
+    .toc { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 700; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+    .toc a:hover { text-decoration: underline; }
+    
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: var(--shadow-md); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--bg-secondary); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    
+    .callout { border-radius: var(--radius); padding: 16px 20px; margin: 20px 0; font-size: 14px; display: flex; gap: 12px; }
+    .callout-icon { font-size: 18px; flex-shrink: 0; line-height: 1.5; }
+    .callout.info { background: var(--accent-light); border: 1px solid #bfdbfe; }
+    .callout.warning { background: var(--warning-light); border: 1px solid #fde68a; }
+    .callout.tip { background: var(--success-light); border: 1px solid #bbf7d0; }
+    .callout.danger { background: var(--danger-light); border: 1px solid #fecaca; }
+
+    /* Meme Style */
+    .meme-box { background: var(--bg-secondary); border: 1px solid var(--border); border-left: 4px solid #a855f7; border-radius: var(--radius-lg); padding: 20px 24px; margin: 32px 0; font-size: 15px; line-height: 1.6; }
+    .meme-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #9333ea; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .meme-setup { color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
+    .meme-punchline { color: var(--text); font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.1); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
+
+    /* CAP Triangle */
+    .cap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 24px 0; }
+    .cap-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .cap-card-title { font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .cap-c .cap-card-title { color: #2563eb; }
+    .cap-a .cap-card-title { color: #16a34a; }
+    .cap-p .cap-card-title { color: #9333ea; }
+    
+    /* Code Block */
+    .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin: 20px 0; }
+    .code-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .code-lang { font-size: 11px; color: #7f849c; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
+    .code-content { padding: 20px; font-family: 'JetBrains Mono',monospace; font-size: 13px; line-height: 1.8; overflow-x: auto; color: var(--code-text); margin: 0; }
+    .tok-kw { color: #cba6f7; } .tok-fn { color: #89b4fa; } .tok-str { color: #a6e3a1; } .tok-num { color: #fab387; } .tok-cmt { color: #6c7086; font-style: italic; } .tok-cls { color: #f9e2af; }
+
+    /* Interactive Simulator */
+    .sim-container { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
+    .sim-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .toggle-group { display: flex; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .toggle-btn { padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--text-muted); transition: all 0.2s; }
+    .toggle-btn.active { background: var(--accent); color: white; }
+    
+    .net-canvas { display: flex; justify-content: space-between; align-items: center; position: relative; padding: 40px 0; }
+    .server-node { background: var(--bg); border: 2px solid var(--text); border-radius: var(--radius-lg); padding: 20px; width: 160px; text-align: center; z-index: 2; position: relative; box-shadow: var(--shadow); }
+    .server-title { font-weight: 800; font-size: 14px; margin-bottom: 12px; }
+    .server-data { font-family: monospace; font-size: 16px; font-weight: 700; background: var(--bg-tertiary); padding: 8px; border-radius: 4px; border: 1px solid var(--border); }
+    
+    .user-node { font-size: 12px; font-weight: 600; background: var(--bg); border: 1px solid var(--border); padding: 6px 12px; border-radius: 20px; position: absolute; }
+    #user-a { top: -10px; left: 0; }
+    #user-b { bottom: -10px; right: 0; }
+    
+    .link-line { position: absolute; top: 50%; left: 160px; right: 160px; height: 4px; background: var(--success); transform: translateY(-50%); z-index: 1; transition: all 0.3s; display: flex; align-items: center; justify-content: center; }
+    .link-line.broken { background: var(--danger); opacity: 0.3; }
+    .cut-icon { font-size: 32px; color: var(--danger); font-weight: 900; display: none; text-shadow: 2px 2px 0 var(--bg); }
+    .link-line.broken .cut-icon { display: block; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    
+    .action-panel { display: flex; gap: 12px; justify-content: center; margin-top: 32px; }
+    .sim-log { margin-top: 24px; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); font-family: monospace; font-size: 12px; height: 100px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .sim-log .log-read { color: #2563eb; }
+    .sim-log .log-write { color: #16a34a; }
+    .sim-log .log-err { color: #dc2626; }
+    .sim-log .log-warn { color: #d97706; }
+
+    /* Quiz */
+    .quiz-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 16px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
+    .quiz-q-text { font-weight: 600; font-size: 15px; margin-bottom: 16px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; background: var(--bg); font-size: 14px; text-align: left; }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #15803d; font-weight: 600; }
+    .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option .opt-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--bg-secondary); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .quiz-explanation { margin-top: 12px; padding: 12px 16px; border-radius: var(--radius); font-size: 14px; display: none; line-height: 1.6; }
+    .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
+    .quiz-explanation.correct-exp { background: var(--success-light); color: #15803d; border-left: 3px solid var(--success); }
+    .quiz-explanation.wrong-exp { background: var(--danger-light); color: #b91c1c; border-left: 3px solid var(--danger); }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; }
+    .footer-nav a { display: flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; font-weight: 500; font-size: 14px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.15s; }
+    .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
+    
+    @media (max-width: 640px) { h1 { font-size: 2em; } .net-canvas { flex-direction: column; gap: 60px; } .link-line { left: 50%; top: 120px; bottom: 120px; width: 4px; height: auto; transform: translateX(-50%); } .user-node { position: relative; top: auto; bottom: auto; left: auto; right: auto; margin-bottom: 12px; display: inline-block; } }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">1. Fundamentals</a>
+    <span class="sep">&#8250;</span>
+    <span>CAP Theorem</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-topic">Fundamentals</span>
+      <span class="badge badge-beginner">Deep Dive Masterclass</span>
+      <span class="badge badge-time">&#9201; ~20 min read</span>
+    </div>
+    <h1>The CAP Theorem</h1>
+    <p class="page-subtitle">
+      The immutable law of distributed systems. When the network breaks, you are forced to make a terrible choice: serve outdated data, or serve no data at all.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="meme-box">
+    <div class="meme-label">&#128269; LOOKS INSIDE</div>
+    <div class="meme-setup">Junior dev proposing a globally distributed database that is "100% Consistent and 100% Available across multiple continents."</div>
+    <div class="meme-punchline">Eric Brewer (Creator of CAP): "I'm going to stop you right there." ✋</div>
+  </div>
+
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#definitions">1. What does CAP stand for?</a></li>
+      <li><a href="#partition">2. Why "CA" is a Lie (The Reality of the Network)</a></li>
+      <li><a href="#dilemma">3. The Dilemma: CP vs AP</a></li>
+      <li><a href="#simulator">4. Interactive Split-Brain Simulator</a></li>
+      <li><a href="#databases">5. Real-World Database Classification</a></li>
+      <li><a href="#code">6. Python Code: Handling CP and AP</a></li>
+      <li><a href="#quiz">7. Quiz &#129514;</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: DEFINITIONS -->
+<section id="definitions">
+  <div class="container">
+    <p class="section-label">The Three Pillars</p>
+    <h2>1. What does CAP stand for?</h2>
+    <p>The CAP theorem states that any distributed data store can only provide two of the following three guarantees simultaneously:</p>
+
+    <div class="cap-grid">
+      <div class="cap-card cap-c">
+        <div class="cap-card-title">&#128274; Consistency (C)</div>
+        <p>Every read receives the most recent write, or an error. If User A updates their bank balance from $10 to $0, User B checking the account from another country one millisecond later <strong>must</strong> see $0. No stale data is allowed.</p>
+      </div>
+      <div class="cap-card cap-a">
+        <div class="cap-card-title">&#9989; Availability (A)</div>
+        <p>Every request receives a non-error response. If the system is running, it <strong>will</strong> answer you. It promises not to crash or time out, even if the data it gives you happens to be slightly out of date.</p>
+      </div>
+      <div class="cap-card cap-p">
+        <div class="cap-card-title">&#128268; Partition Tolerance (P)</div>
+        <p>The system continues to operate despite an arbitrary number of messages being dropped (or delayed) by the network between nodes. In other words, if a cable is cut between your servers, the system as a whole doesn't completely die.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: THE LIE OF CA -->
+<section id="partition">
+  <div class="container">
+    <p class="section-label">A Hard Pill to Swallow</p>
+    <h2>2. Why "CA" is a Lie</h2>
+    <p>Many beginners think, "Okay, I'll pick Consistency and Availability (CA) and just ignore Partition Tolerance."</p>
+    
+    <div class="callout warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div>
+        <strong>You cannot opt-out of Partition Tolerance on the Internet.</strong> <br><br>
+        Networks fail. Cables get cut by backhoes. Switches blow out. AWS regions go down. Because "P" (network failure) is a physical inevitability governed by the universe, you <em>must</em> support it. Therefore, the CAP theorem is not really picking 2 out of 3. It is deciding what to do <em>when</em> a partition happens: Do you sacrifice <strong>C</strong> or <strong>A</strong>?
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: THE DILEMMA -->
+<section id="dilemma">
+  <div class="container">
+    <p class="section-label">The Split Brain Problem</p>
+    <h2>3. The Dilemma: CP vs AP</h2>
+    <p>Imagine a distributed database with a <strong>USA Server</strong> and a <strong>Europe Server</strong>. They continuously replicate data to stay perfectly in sync[cite: 12].</p>
+    <p>Suddenly, the trans-Atlantic fiber optic cable is severed[cite: 12]. The network fails between them. They can no longer replicate[cite: 12]. Now, User A writes new data to the USA Server[cite: 12].</p>
+    <p>A millisecond later, User B tries to read that data from the Europe Server[cite: 12]. Because the servers cannot talk, the Europe Server is stuck with old data. You, the architect, must make a choice[cite: 12]:</p>
+
+    <ul style="padding-left: 20px; margin-top: 16px;">
+      <li><strong>Choice A (Consistency / CP Mode):</strong> STOP serving data[cite: 12]. The Europe Server returns an error to User B (sacrificing Availability) to guarantee that User B never sees the wrong (stale) data. Used for banking.</li>
+      <li><strong>Choice B (Availability / AP Mode):</strong> Risk wrong data[cite: 12]. The Europe Server returns the stale data it currently has (sacrificing Consistency) to ensure User B gets <em>some</em> response. Used for social media likes.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- SECTION 4: SIMULATOR -->
+<section id="simulator">
+  <div class="container">
+    <p class="section-label">Interactive Architecture</p>
+    <h2>4. The Trans-Atlantic Simulator</h2>
+    <p>Step into the shoes of a distributed systems engineer. Cut the network cable between the USA and Europe servers, write some data, and see how the system behaves based on your CAP configuration[cite: 12].</p>
+
+    <div class="sim-container">
+      <div class="sim-header">
+        <button class="btn btn-danger" id="btn-cut" onclick="toggleNetwork()">&#9988; Cut Network Cable (Trigger Partition)</button>
+        
+        <div class="toggle-group" id="mode-toggle">
+          <button class="toggle-btn active" onclick="setMode('AP')">AP Mode (Favor Availability)</button>
+          <button class="toggle-btn" onclick="setMode('CP')">CP Mode (Favor Consistency)</button>
+        </div>
+      </div>
+
+      <div class="net-canvas">
+        <div class="server-node" id="usa-node">
+          <div class="user-node" id="user-a">User A (Writes)</div>
+          <div class="server-title">USA Server</div>
+          <div class="server-data" id="usa-data">V1</div>
+        </div>
+        
+        <div class="link-line" id="net-link">
+          <div class="cut-icon" id="net-cut-icon">&#10060;</div>
+        </div>
+
+        <div class="server-node" id="eu-node">
+          <div class="user-node" id="user-b">User B (Reads)</div>
+          <div class="server-title">Europe Server</div>
+          <div class="server-data" id="eu-data">V1</div>
+        </div>
+      </div>
+
+      <div class="action-panel">
+        <button class="btn btn-secondary" onclick="writeToUSA()">1. User A Writes to USA Server</button>
+        <button class="btn btn-secondary" onclick="readFromEU()">2. User B Reads from Europe Server</button>
+      </div>
+
+      <div class="sim-log" id="sim-log">
+        <div class="log-read">System Initialized. USA and EU servers are in sync at [V1].</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: DATABASES -->
+<section id="databases">
+  <div class="container">
+    <p class="section-label">Technology Choices</p>
+    <h2>5. Real-World Database Classification</h2>
+    <p>When you choose a database, you are implicitly choosing a side in the CAP theorem.</p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 24px 0; text-align: left;">
+      <tr style="background: var(--bg-secondary); border-bottom: 2px solid var(--border);">
+        <th style="padding: 12px; font-weight: 700;">CAP Focus</th>
+        <th style="padding: 12px; font-weight: 700;">Databases</th>
+        <th style="padding: 12px; font-weight: 700;">Use Case</th>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 12px; font-weight: 600; color: #2563eb;">CP (Consistency)</td>
+        <td style="padding: 12px;">MongoDB, Redis, HBase</td>
+        <td style="padding: 12px;">Financial ledgers, inventory checkout. (Will block reads if nodes can't reach consensus).</td>
+      </tr>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 12px; font-weight: 600; color: #16a34a;">AP (Availability)</td>
+        <td style="padding: 12px;">Cassandra, DynamoDB, CouchDB</td>
+        <td style="padding: 12px;">Social media feeds, telemetry data. (Will return stale data rather than returning a 500 Error).</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; font-weight: 600; color: var(--text-muted);">CA (Illusion)</td>
+        <td style="padding: 12px;">PostgreSQL, MySQL (Single Node)</td>
+        <td style="padding: 12px;">Monolithic apps. If the single node goes down, the entire system dies (No Partition Tolerance).</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- SECTION 6: CODE -->
+<section id="code">
+  <div class="container">
+    <p class="section-label">Show Me The Code</p>
+    <h2>6. Python Code: Handling CP vs AP</h2>
+    <p>Here is what handling a network partition looks like in application code depending on your database's CAP guarantees.</p>
+
+    <div class="code-block">
+      <div class="code-header"><span class="code-lang">Python</span></div>
+      <pre class="code-content">
+<span class="tok-kw">import</span> requests
+
+<span class="tok-kw">def</span> <span class="tok-fn">read_bank_balance_cp</span>(user_id):
+    <span class="tok-cmt"># CP System (e.g., MongoDB strict read preference)</span>
+    <span class="tok-cmt"># If the network is partitioned, it refuses to serve stale data.</span>
+    <span class="tok-kw">try</span>:
+        response = db_client.<span class="tok-fn">read</span>(f"/balance/{user_id}", timeout=<span class="tok-num">2</span>)
+        <span class="tok-kw">return</span> response.data
+    <span class="tok-kw">except</span> NetworkPartitionError:
+        <span class="tok-cmt"># We MUST show an error to the user rather than the wrong balance</span>
+        <span class="tok-kw">raise</span> SystemUnavailableException(<span class="tok-str">"Bank is currently offline for maintenance."</span>)
+
+
+<span class="tok-kw">def</span> <span class="tok-fn">read_instagram_feed_ap</span>(user_id):
+    <span class="tok-cmt"># AP System (e.g., Cassandra with Quorum level ONE)</span>
+    <span class="tok-cmt"># If the network is partitioned, it serves whatever old data it has locally.</span>
+    <span class="tok-kw">try</span>:
+        response = db_client.<span class="tok-fn">read</span>(f"/feed/{user_id}", timeout=<span class="tok-num">2</span>)
+        <span class="tok-kw">return</span> response.data
+    <span class="tok-kw">except</span> NetworkPartitionError:
+        <span class="tok-cmt"># Fallback: Read from the local stale cache so the user sees SOMETHING</span>
+        stale_feed = local_cache.<span class="tok-fn">get_stale</span>(f"/feed/{user_id}")
+        <span class="tok-fn">print</span>(<span class="tok-str">"Warning: Returning stale data due to network partition."</span>)
+        <span class="tok-kw">return</span> stale_feed</pre>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: QUIZ -->
+<section id="quiz">
+  <div class="container">
+    <p class="section-label">Knowledge Verification</p>
+    <h2>7. Quiz Time &#129514;</h2>
+
+    <div class="quiz-progress">
+      <span id="quiz-score-text" style="font-weight:700;">0 / 3</span>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="quiz-progress-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="quiz">
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. Why is a "CA" (Consistent and Available) distributed database impossible on the internet?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">A</span> Because AWS does not support it.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">B</span> Because network partitions (P) are a physical inevitability. When cables break, you are forced to choose between C or A.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">C</span> Because relational SQL is too slow.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-1">
+          &#10003; <strong>Physical laws.</strong> You cannot prevent network failures. Since 'P' will eventually happen, the only real architectural choice is how your system behaves during that failure (CP vs AP).
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. According to the CAP dilemma, if a network fails between two servers, what happens if you choose Consistency (CP)?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">A</span> You STOP serving data (throw an error) to ensure no user ever reads wrong/stale data.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">B</span> You risk serving wrong data to keep the system online.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">C</span> The network magically heals itself.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-2">
+          &#10003; <strong>Stop serving data.</strong> In a CP system, if a node cannot verify it has the latest data, it will refuse to answer the read request[cite: 12].
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Which of the following applications should absolutely be built on an AP (Available and Partition Tolerant) system?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> A cryptocurrency trading exchange.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">B</span> An airline ticketing system ensuring seats aren't double-booked.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">C</span> A YouTube video comment section.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-3">
+          &#10003; <strong>YouTube Comments.</strong> It doesn't matter if someone sees a comment 5 seconds later than someone else (stale data). It matters much more that the app doesn't crash (Availability).
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="container">
+    <div class="footer-nav">
+      <a href="5-Fault-Tolerance.html">&#8592; Fault Tolerance</a>
+      <a href="#">ACID vs BASE &#8594;</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// --- Simulator Logic ---
+let isNetworkCut = false;
+let currentMode = 'AP';
+let versionCounter = 1;
+let usaDataVal = "V1";
+let euDataVal = "V1";
+
+function logMsg(msg, type='info') {
+  const log = document.getElementById('sim-log');
+  const el = document.createElement('div');
+  el.className = `log-${type}`;
+  el.textContent = `> ${msg}`;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  const btns = document.getElementById('mode-toggle').children;
+  btns[0].classList.toggle('active', mode === 'AP');
+  btns[1].classList.toggle('active', mode === 'CP');
+  logMsg(`System configured to ${mode} mode.`);
+}
+
+function toggleNetwork() {
+  isNetworkCut = !isNetworkCut;
+  const link = document.getElementById('net-link');
+  const btn = document.getElementById('btn-cut');
+  
+  if (isNetworkCut) {
+    link.classList.add('broken');
+    btn.innerHTML = "&#128279; Repair Network Cable";
+    btn.classList.replace('btn-danger', 'btn-success');
+    btn.style.background = 'var(--success)';
+    logMsg("CRITICAL: Network Partition created! USA and EU cannot replicate.", "err");
+  } else {
+    link.classList.remove('broken');
+    btn.innerHTML = "&#9988; Cut Network Cable (Trigger Partition)";
+    btn.style.background = 'var(--danger)';
+    
+    // Auto-heal data
+    euDataVal = usaDataVal;
+    document.getElementById('eu-data').textContent = euDataVal;
+    logMsg("Network Repaired. EU Server successfully replicated data from USA.", "read");
+  }
+}
+
+function writeToUSA() {
+  versionCounter++;
+  usaDataVal = `V${versionCounter}`;
+  document.getElementById('usa-data').textContent = usaDataVal;
+  
+  if (!isNetworkCut) {
+    // Replicate instantly
+    euDataVal = usaDataVal;
+    document.getElementById('eu-data').textContent = euDataVal;
+    logMsg(`User A wrote [${usaDataVal}] to USA. Replicated to EU successfully.`, "write");
+  } else {
+    logMsg(`User A wrote [${usaDataVal}] to USA. REPLICATION FAILED! (Network is cut)`, "warn");
+  }
+}
+
+function readFromEU() {
+  if (!isNetworkCut) {
+    logMsg(`User B read [${euDataVal}] from EU. Data is consistent.`, "read");
+  } else {
+    if (currentMode === 'CP') {
+      logMsg(`User B read failed: "ERROR 503: STOP serving data (Consistency enforced)."`, "err");
+    } else {
+      logMsg(`User B read [${euDataVal}] from EU. Warning: Risked wrong data (Availability enforced. Expected: ${usaDataVal}).`, "warn");
+    }
+  }
+}
+
+// --- Quiz Logic ---
+let quizScore = 0, questionsAnswered = 0;
+function checkAnswer(btn, isCorrect, qNum) {
+  const q = btn.closest('.quiz-question');
+  if (q.querySelector('.correct')) return;
+  questionsAnswered++;
+  q.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+  if (isCorrect) { btn.classList.add('correct'); quizScore++; } 
+  else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (o.getAttribute('onclick') && o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  document.getElementById('exp-' + qNum).classList.add('show', isCorrect ? 'correct-exp' : 'wrong-exp');
+  document.getElementById('quiz-score-text').textContent = quizScore + ' / 3';
+  document.getElementById('quiz-progress-bar').style.width = (questionsAnswered / 3 * 100) + '%';
+}
+</script>
+</body>
+</html>

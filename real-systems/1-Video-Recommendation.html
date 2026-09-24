@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Recommendation System — System Design</title>
+  <meta name="description" content="Design YouTube's recommendation engine. Learn about Candidate Generation, Two-Tower Models, Vector Embeddings, HNSW Databases, and the Cold Start problem.">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #475569; /* Darkened for better contrast */
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #d97706;
+      --warning-light: #fffbeb;
+      --danger: #dc2626;
+      --danger-light: #fef2f2;
+      --code-bg: #1e293b;
+      --code-text: #e2e8f0;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.7; font-size: 16px; overflow-x: hidden; }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+    .topnav { border-bottom: 1px solid var(--border); padding: 14px 0; position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); z-index: 100; }
+    .topnav .container { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); font-weight: 500; }
+    .topnav a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .topnav a:hover { text-decoration: underline; }
+    .topnav .sep { color: var(--border); }
+    
+    .page-header { padding: 60px 0 48px; border-bottom: 1px solid var(--border); }
+    .badges { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 4px 10px; border-radius: 20px; border: 1px solid; }
+    .badge-system { color: #6d28d9; border-color: #6d28d9; background: #f3e8ff; }
+    .badge-topic { color: var(--accent); border-color: var(--accent); background: var(--accent-light); }
+    .badge-time { color: var(--text-muted); border-color: var(--border); background: var(--bg-secondary); }
+    
+    h1 { font-size: 2.8em; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px; color: #0f172a; }
+    .page-subtitle { font-size: 1.2em; color: var(--text-muted); max-width: 600px; font-weight: 400; }
+    section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    h2 { font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; color: #0f172a; }
+    h3 { font-size: 1.25em; font-weight: 700; margin-bottom: 12px; color: #1e293b; }
+    p { margin-bottom: 16px; }
+    
+    .section-label { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    
+    .toc { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin: 32px 0; }
+    .toc h3 { margin-bottom: 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 800; }
+    .toc ol { padding-left: 20px; font-weight: 500; }
+    .toc li { margin-bottom: 8px; }
+    .toc a { color: var(--accent); text-decoration: none; font-size: 15px; }
+    .toc a:hover { text-decoration: underline; }
+    
+    .callout { border-radius: var(--radius); padding: 16px 20px; margin: 20px 0; font-size: 15px; display: flex; gap: 12px; border-left: 4px solid; font-weight: 500; }
+    .callout-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+    .callout.info { background: var(--accent-light); border-color: var(--accent); color: #1e3a8a; }
+    .callout.warning { background: var(--warning-light); border-color: var(--warning); color: #78350f; }
+    .callout.tip { background: var(--success-light); border-color: var(--success); color: #14532d; }
+    .callout.danger { background: var(--danger-light); border-color: var(--danger); color: #7f1d1d; }
+
+    /* Meme Style */
+    .meme-box { background: #faf5ff; border: 1px solid #e9d5ff; border-left: 4px solid #a855f7; border-radius: var(--radius-lg); padding: 20px 24px; margin: 32px 0; font-size: 15px; line-height: 1.6; }
+    .meme-label { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: #7e22ce; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+    .meme-setup { color: #4c1d95; font-style: italic; margin-bottom: 8px; font-weight: 500; }
+    .meme-punchline { color: #3b0764; font-weight: 800; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.15); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
+
+    /* Code Block */
+    .code-block { background: var(--code-bg); border-radius: var(--radius); overflow: hidden; margin: 20px 0; border: 1px solid #334155; }
+    .code-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #0f172a; border-bottom: 1px solid #334155; }
+    .code-lang { font-size: 11px; color: #94a3b8; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .code-content { padding: 20px; font-family: 'JetBrains Mono',monospace; font-size: 14px; line-height: 1.8; overflow-x: auto; color: var(--code-text); margin: 0; }
+    .tok-kw { color: #cba6f7; font-weight: bold; } .tok-fn { color: #82aaff; } .tok-str { color: #c3e88d; } .tok-num { color: #f78c6c; } .tok-cmt { color: #64748b; font-style: italic; } .tok-cls { color: #ffcb6b; }
+
+    /* Architecture Funnel Diagram */
+    .funnel-container { display: flex; flex-direction: column; align-items: center; margin: 40px 0; gap: 16px; }
+    .funnel-step { background: var(--bg); border: 2px solid var(--border); border-radius: var(--radius); padding: 24px; text-align: center; position: relative; width: 100%; transition: all 0.3s ease; box-shadow: var(--shadow-sm); }
+    .funnel-step:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .funnel-step.wide { max-width: 600px; border-top-width: 6px; border-top-color: #3b82f6; }
+    .funnel-step.medium { max-width: 400px; border-top-width: 6px; border-top-color: #8b5cf6; }
+    .funnel-step.narrow { max-width: 250px; border-top-width: 6px; border-top-color: #10b981; }
+    .funnel-title { font-weight: 800; font-size: 18px; margin-bottom: 8px; color: var(--text); }
+    .funnel-desc { font-size: 14px; color: var(--text-muted); font-weight: 500; line-height: 1.5; }
+    .funnel-stat { position: absolute; right: -130px; top: 50%; transform: translateY(-50%); background: #f0f9ff; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 800; font-family: monospace; color: #0369a1; border: 1px solid #bae6fd; }
+    .funnel-arrow { font-size: 24px; color: #cbd5e1; font-weight: bold; }
+
+    /* Model Diagram (Two Tower) */
+    .tower-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin: 32px 0; }
+    .tower { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
+    .tower-title { font-weight: 800; margin-bottom: 16px; font-size: 15px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; }
+    .nn-layer { background: white; border: 1px solid var(--border); padding: 8px; margin-bottom: 8px; border-radius: 4px; font-size: 13px; font-weight: 600; box-shadow: var(--shadow-sm); }
+    .nn-layer.dense { width: 80%; margin: 0 auto 8px; background: #eff6ff; border-color: #bfdbfe; }
+    .nn-layer.embedding { width: 60%; margin: 0 auto; background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .dot-product { font-size: 24px; font-weight: 900; color: var(--text-muted); background: var(--bg-secondary); width: 60px; height: 60px; border-radius: 50%; display: grid; place-items: center; border: 2px dashed var(--border); }
+
+    /* Light Mode Vector Simulator */
+    .sim-container { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; box-shadow: var(--shadow-sm); }
+    .vector-space { width: 100%; height: 350px; background: #ffffff; border-radius: var(--radius); position: relative; overflow: hidden; border: 2px solid #cbd5e1; cursor: crosshair; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .grid-lines { position: absolute; inset: 0; background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px); background-size: 50px 50px; }
+    .axis-x { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #94a3b8; }
+    .axis-y { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #94a3b8; }
+    
+    .data-point { position: absolute; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); transition: all 0.3s; z-index: 10; border: 2px solid #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .data-point:hover { transform: translate(-50%, -50%) scale(1.5); }
+    .data-point.cat { background: #f59e0b; } /* Orange */
+    .data-point.dog { background: #3b82f6; } /* Blue */
+    .data-point.chess { background: #ef4444; } /* Red */
+    .data-point.target { background: #10b981; width: 18px; height: 18px; z-index: 20; animation: pulse 2s infinite; border: 2px solid #064e3b; }
+    .data-point.highlighted { border: 3px solid #1e293b; transform: translate(-50%, -50%) scale(1.5); z-index: 15; }
+    
+    .point-label { position: absolute; color: #475569; font-size: 11px; font-weight: 700; font-family: monospace; pointer-events: none; margin-top: 12px; margin-left: 12px; opacity: 0; transition: opacity 0.2s; background: rgba(255,255,255,0.9); padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; }
+    .data-point:hover + .point-label, .data-point.highlighted + .point-label { opacity: 1; z-index: 30; color: #0f172a; }
+
+    .search-ring { position: absolute; border: 2px dashed #10b981; background: rgba(16, 185, 129, 0.1); border-radius: 50%; transform: translate(-50%, -50%); opacity: 0; pointer-events: none; transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .search-ring.active { opacity: 1; }
+
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+
+    .sim-controls { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: var(--radius); border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid #cbd5e1; box-shadow: var(--shadow-sm); }
+    .btn-secondary:hover { background: var(--bg-tertiary); }
+
+    .legend { display: flex; gap: 16px; justify-content: center; margin-top: 16px; font-size: 13px; font-weight: 600; color: #334155; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+
+    /* Quiz */
+    .quiz-progress { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .progress-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; margin: 0 16px; }
+    .progress-bar { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; border: 1px solid var(--border); }
+    .quiz-q-text { font-weight: 700; font-size: 15px; margin-bottom: 16px; color: #0f172a; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+    .quiz-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; background: var(--bg); font-size: 14px; font-weight: 500; text-align: left; }
+    .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); color: #1e3a8a; }
+    .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #14532d; font-weight: 700; }
+    .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: #7f1d1d; }
+    .quiz-option:disabled { cursor: default; }
+    .quiz-option .opt-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--bg-secondary); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; color: #475569; }
+    .quiz-explanation { margin-top: 12px; padding: 14px 16px; border-radius: var(--radius); font-size: 14px; display: none; line-height: 1.6; font-weight: 500; }
+    .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
+    .quiz-explanation.correct-exp { background: var(--success-light); color: #14532d; border-left: 4px solid var(--success); }
+    .quiz-explanation.wrong-exp { background: var(--danger-light); color: #7f1d1d; border-left: 4px solid var(--danger); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+    .page-footer { border-top: 1px solid var(--border); padding: 48px 0; margin-top: 48px; }
+    
+    @media (max-width: 768px) {
+      .funnel-stat { position: static; transform: none; display: inline-block; margin-top: 12px; }
+      h1 { font-size: 2.2em; }
+      .tower-grid { grid-template-columns: 1fr; gap: 12px; }
+      .dot-product { margin: 0 auto; transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+<nav class="topnav">
+  <div class="container">
+    <a href="../index.html">&#127968; Home</a>
+    <span class="sep">&#8250;</span>
+    <a href="#">Real Systems</a>
+    <span class="sep">&#8250;</span>
+    <span>Video Recommendation</span>
+  </div>
+</nav>
+
+<header class="page-header">
+  <div class="container">
+    <div class="badges">
+      <span class="badge badge-system">Real World Architecture</span>
+      <span class="badge badge-topic">Machine Learning</span>
+      <span class="badge badge-time">&#9201; ~30 min read</span>
+    </div>
+    <h1>Designing a Video Recommendation System</h1>
+    <p class="page-subtitle">
+      How does YouTube know exactly what you want to watch at 2 AM? We are going to architect a scalable recommendation pipeline, moving from a naive SQL bottleneck to a modern Two-Tower Neural Network and Vector Database funnel.
+    </p>
+  </div>
+</header>
+
+<div class="container">
+  <div class="meme-box">
+    <div class="meme-label">&#128269; LOOKS INSIDE</div>
+    <div class="meme-setup">Me: I just watched one 5-minute video on how to fix a leaky sink.</div>
+    <div class="meme-punchline">The Algorithm: "Understood. Here is a 4-hour documentary on the history of ancient Roman aqueducts and 14 videos of people building underground pools in the jungle." 🧱</div>
+  </div>
+
+  <nav class="toc">
+    <h3>&#128203; On this page</h3>
+    <ol>
+      <li><a href="#naive">1. The Naive Approach (And Why It Fails)</a></li>
+      <li><a href="#funnel">2. The Modern System: The Funnel Architecture</a></li>
+      <li><a href="#heuristics">3. Phase 1: Candidate Generation (Heuristics vs ML)</a></li>
+      <li><a href="#two-tower">4. Deep Dive: The Two-Tower Model</a></li>
+      <li><a href="#simulator">5. Interactive Vector Database Simulator (HNSW)</a></li>
+      <li><a href="#ranking">6. Phase 2: ML Ranking & The Clickbait Epidemic</a></li>
+      <li><a href="#cold-start">7. The Cold Start Problem</a></li>
+      <li><a href="#quiz">8. Architecture Quiz &#129514;</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- SECTION 1: THE NAIVE APPROACH -->
+<section id="naive">
+  <div class="container">
+    <p class="section-label">The Bottleneck</p>
+    <h2>1. The Naive Approach (And Why It Fails)</h2>
+    <p>Let's imagine we want to find the perfect video for a user. The simplest approach is to build a Machine Learning (ML) model that takes in a <code>[User Profile]</code> and a <code>[Video Metadata]</code>, and outputs a match percentage[cite: 11].</p>
+    
+    <div class="code-block" style="max-width: 500px;">
+      <div class="code-header"><span class="code-lang">Naive Logic</span></div>
+      <pre class="code-content">
+Video_1 Match: 93% <span class="tok-cmt">[cite: 14]</span>
+Video_2 Match: 83% <span class="tok-cmt">[cite: 14]</span>
+Video_3 Match:  2% <span class="tok-cmt">[cite: 14]</span>
+...
+<span class="tok-cmt"># Sort descending, show top 10 to user</span></pre>
+    </div>
+
+    <p><strong>The Catastrophic Flaw:</strong> Scale. We have billions of videos on the platform[cite: 14]. If our heavy ML model takes just <strong>1 millisecond</strong> to score a single video, evaluating 1 billion videos for a single user would take <strong>11.5 days</strong> of compute time[cite: 14] just to load their homepage!</p>
+    
+    <div class="meme-box" style="margin-top:24px;">
+      <div class="meme-label">&#128640; SYSTEM DESIGN REALITY</div>
+      <div class="meme-setup">Bro tried to run a 50-layer neural network sequentially on 10 billion database rows while the user was waiting for the page to load.</div>
+      <div class="meme-punchline">The AWS Bill arrived. Chat, is he cooked? -10,000 aura. 📉</div>
+    </div>
+
+    <div class="callout danger">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div>
+        Running a deep neural network on billions of videos requires an insane amount of resources[cite: 14]. Doing this in real-time is physically impossible unless you possess a "data center the size of a state"[cite: 14]. We need a better way.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 2: THE FUNNEL -->
+<section id="funnel">
+  <div class="container">
+    <p class="section-label">Modern System Design</p>
+    <h2>2. The Modern System: The Funnel</h2>
+    <p>To solve the bottleneck, modern systems (like YouTube, TikTok, and Netflix) split the recommendation engine into a multi-stage funnel[cite: 8]. We trade absolute precision at the top for blazing speed, and save the heavy ML for the very bottom[cite: 8].</p>
+
+    <div class="funnel-container">
+      <div class="funnel-step wide">
+        <div class="funnel-title">1. Candidate Generation</div>
+        <div class="funnel-desc">Extremely fast, lightweight algorithms that trim billions of videos down to a few hundred. High recall, low precision[cite: 8].</div>
+        <div class="funnel-stat">1,000,000,000 &#8594; 1,000</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+      
+      <div class="funnel-step medium">
+        <div class="funnel-title">2. ML Ranking</div>
+        <div class="funnel-desc">The heavy, precise Neural Network. It scores the remaining 1,000 videos to find the perfect matches[cite: 8].</div>
+        <div class="funnel-stat">1,000 &#8594; 50</div>
+      </div>
+      <div class="funnel-arrow">&#8595;</div>
+
+      <div class="funnel-step narrow">
+        <div class="funnel-title">3. Re-Ranking</div>
+        <div class="funnel-desc">Final business logic. Removes clickbait, ensures diversity (so you don't get 50 identical videos), and inserts Ads[cite: 8].</div>
+        <div class="funnel-stat">50 &#8594; Top 10 UI</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: HEURISTICS -->
+<section id="heuristics">
+  <div class="container">
+    <p class="section-label">Phase 1 Deep Dive</p>
+    <h2>3. Phase 1: Candidate Generation (Heuristics)</h2>
+    <p>How do we instantly filter billions of videos down to 1,000 without using heavy ML? We use simple ideas, also known as <strong>Heuristics</strong>[cite: 8, 9].</p>
+    
+    <div class="callout tip">
+      <span class="callout-icon">&#128161;</span>
+      <div>
+        <strong>The "MrBeast" Heuristic:</strong> The simple idea that if a user is subscribed to MrBeast, there is a very high chance they want to watch MrBeast's new video[cite: 8]. We don't need AI to figure that out, we just need a database query[cite: 9].
+      </div>
+    </div>
+
+    <p>We generate candidates using multiple fast, parallel database queries[cite: 9]:</p>
+    <ul style="padding-left: 20px; margin-bottom: 24px; font-weight: 500;">
+      <li><strong>Content-Based:</strong> <code>SELECT * FROM videos WHERE channel_id IN (User Subscriptions)</code>[cite: 8]</li>
+      <li><strong>Trending:</strong> <code>SELECT * FROM videos WHERE status = 'Trending' LIMIT 100</code>[cite: 8]</li>
+      <li><strong>Collaborative Filtering:</strong> Finding "Videos watched by similar users"[cite: 9]. (e.g., User A and User B both watch Tech videos. User B watched a new keyboard review. Recommend it to User A).</li>
+    </ul>
+    
+    <p>While database queries are great, the modern industry standard for finding "Similar videos to what I liked"[cite: 9] is shifting entirely to <strong>Vector Embeddings</strong>.</p>
+  </div>
+</section>
+
+<!-- SECTION 4: TWO TOWER MODEL -->
+<section id="two-tower">
+  <div class="container">
+    <p class="section-label">Going One Step Further</p>
+    <h2>4. Embeddings & The Two-Tower Model</h2>
+    <p>Machine Learning models cannot "watch" a video or "interview" a user. They only understand arrays of numbers. An <strong>embedding</strong> is a process that compresses the "meaning" of a video (its title, tags, thumbnail) into an array of floats (e.g., <code>[0.9, 1.5, -2.8]</code>)[cite: 9, 10].</p>
+    
+    <p>To do this at scale, companies use a <strong>Two-Tower Neural Network</strong>:</p>
+
+    <div class="tower-grid">
+      <div class="tower">
+        <div class="tower-title">User Tower</div>
+        <div class="nn-layer">Input: Watch History, Age, Search Tokens</div>
+        <div class="nn-layer dense">Dense Layer</div>
+        <div class="nn-layer dense">Dense Layer</div>
+        <div class="nn-layer embedding">User Embedding<br><code>[0.8, -1.2, 3.4]</code></div>
+      </div>
+      
+      <div class="dot-product">✖</div>
+
+      <div class="tower">
+        <div class="tower-title">Video Tower</div>
+        <div class="nn-layer">Input: Video Title, Tags, Category, Age</div>
+        <div class="nn-layer dense">Dense Layer</div>
+        <div class="nn-layer dense">Dense Layer</div>
+        <div class="nn-layer embedding">Video Embedding<br><code>[1.0, 0.9, -0.2]</code></div>
+      </div>
+    </div>
+
+    <p>Because they are just coordinates in space, we can plot them mathematically. The <strong>Dot Product</strong> of the User Embedding and the Video Embedding gives us a similarity score. Videos that are conceptually similar (pets) physically group together in the vector space, while unrelated videos (chess) are pushed far away[cite: 9].</p>
+  </div>
+</section>
+
+<!-- SECTION 5: VECTOR SIMULATOR -->
+<section id="simulator">
+  <div class="container">
+    <p class="section-label">Interactive Architecture</p>
+    <h2>5. Vector Databases & Nearest Neighbors</h2>
+    <p>Once we turn billions of videos into embeddings, we store them in a specialized <strong>Vector Database</strong> (like Pinecone, Milvus, or pgvector)[cite: 10].</p>
+    
+    <p>Traditional SQL databases are terrible at finding "points close to other points in 768-dimensional space." Vector databases are built specifically for this[cite: 10]. They use Hierarchical algorithms (like <strong>HNSW</strong> - Hierarchical Navigable Small World) to index the space, allowing them to find the "Nearest Neighbors" blazingly fast[cite: 10].</p>
+
+    <div class="sim-container">
+      <h3 style="margin-bottom: 8px; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 24px;">🎯</span> Hierarchical Nearest Neighbor (HNSW) Simulator
+      </h3>
+      <p style="font-size: 14px; color: #475569; margin-bottom: 24px; font-weight: 500;">Click anywhere in the vector space below to represent a <strong>User Query</strong>. The database will instantly calculate geometric distances and return the <strong>Top 3 Nearest Neighbors</strong> to your coordinates[cite: 10].</p>
+
+      <div class="vector-space" id="vector-space">
+        <div class="grid-lines"></div>
+        <div class="axis-x"></div>
+        <div class="axis-y"></div>
+        <div class="search-ring" id="search-ring"></div>
+        <!-- Points generated by JS -->
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background: #f59e0b; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div> Cat Videos[cite: 9]</div>
+        <div class="legend-item"><div class="legend-dot" style="background: #3b82f6; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div> Dog Videos[cite: 9]</div>
+        <div class="legend-item"><div class="legend-dot" style="background: #ef4444; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></div> Chess Matches[cite: 9]</div>
+      </div>
+      
+      <div style="margin-top: 24px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-family: monospace; font-size: 13px; color: #475569; text-align: center; font-weight: 600;" id="sim-output">
+        Waiting for user query... Click the graph!
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: RANKING -->
+<section id="ranking">
+  <div class="container">
+    <p class="section-label">Phase 2</p>
+    <h2>6. ML Ranking & The Clickbait Epidemic</h2>
+    <p>Once our Candidate Generation funnel (Heuristics + Vector DB) returns ~1,000 highly relevant videos, we finally pass them to the heavy ML Ranking model[cite: 8].</p>
+    
+    <p>This model evaluates hundreds of dense features to assign a final score:</p>
+    <ul style="padding-left: 20px; margin-bottom: 24px; font-weight: 500;">
+      <li><strong>User Context:</strong> Is it 9 AM on a Tuesday (show educational content), or 11 PM on a Friday (show entertainment)?</li>
+      <li><strong>Video Metadata:</strong> How fresh is the video? What is its historical Click-Through Rate (CTR)?</li>
+    </ul>
+
+    <div class="callout warning">
+      <span class="callout-icon">&#9888;&#65039;</span>
+      <div>
+        <strong>The Clickbait Problem:</strong> In the early 2010s, YouTube's objective function was purely optimized to maximize "Clicks". Creators realized this and started exploiting the algorithm with wildly misleading thumbnails and ALL CAPS TITLES. <br><br>
+        To fix this, modern ranking models optimize for <strong>Expected Watch Time</strong> and post-video <strong>Survey Satisfaction</strong> to ensure long-term user retention, heavily penalizing videos where users click and immediately bounce.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 7: COLD START -->
+<section id="cold-start">
+  <div class="container">
+    <p class="section-label">Edge Cases</p>
+    <h2>7. The Cold Start Problem</h2>
+    <p>What happens when a new creator uploads a video? It has 0 views, 0 clicks, and 0 watch time. The ML Ranking model has no historical data to score it with.</p>
+
+    <div class="meme-box" style="margin-top:16px; margin-bottom: 24px;">
+      <div class="meme-label">&#127918; NEW CREATOR EXPERIENCE</div>
+      <div class="meme-setup">New YouTuber uploading their first Minecraft let's play, expecting the algorithm to push it to millions.</div>
+      <div class="meme-punchline">The ML Algorithm holding a spatula: "Just put the fries in the bag bro." 🍟</div>
+    </div>
+
+    <p>To solve the <strong>Cold Start Problem</strong>, systems use an "Explore & Exploit" strategy:</p>
+    <ul style="padding-left: 20px; margin-bottom: 24px; font-weight: 500;">
+      <li><strong>Explore:</strong> The system takes a calculated risk and forcibly injects the new video into the feeds of a small test group of users (based purely on the Video Tower's text embedding of the title/tags).</li>
+      <li><strong>Exploit:</strong> If that small test group clicks and watches the video, the system immediately updates the video's CTR and Watch Time metrics, allowing the standard Ranking model to pick it up and push it to a wider audience.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- SECTION 8: QUIZ -->
+<section id="quiz">
+  <div class="container">
+    <p class="section-label">Knowledge Verification</p>
+    <h2>8. Architecture Quiz &#129514;</h2>
+
+    <div class="quiz-progress">
+      <span id="quiz-score-text" style="font-weight:800; color:#0f172a;">0 / 3</span>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="quiz-progress-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="quiz">
+      <div class="quiz-question">
+        <div class="quiz-q-text">1. Why do modern recommendation systems use a multi-stage funnel instead of just one giant ML model?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">A</span> Running a deep neural network on billions of videos requires too much compute time and resources[cite: 14]. The funnel uses lightweight heuristics to filter candidates before applying the heavy model.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">B</span> Because relational SQL databases cannot store video MP4 files.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,1)"><span class="opt-letter">C</span> To prevent creators from using clickbait thumbnails.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-1">
+          &#10003; <strong>Performance constraints.</strong> A heavy ML model would take days to score billions of videos for a single user[cite: 14]. The funnel architecture solves this by aggressively trimming the dataset first.
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">2. What is an "Embedding" in the context of the Two-Tower Model?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">A</span> A piece of HTML code (<code>&lt;iframe&gt;</code>) used to embed a YouTube video on a website.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">B</span> An array of numbers (coordinates) that represent the abstract meaning of a user or video, allowing algorithms to calculate geometric distance between concepts[cite: 9, 10].</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">C</span> A caching strategy where hot data is embedded directly into the CDN edge node.</button>
+        </div>
+        <div class="quiz-explanation" id="exp-2">
+          &#10003; <strong>Mathematical representation.</strong> Embeddings turn concepts into math. If a User Embedding closely matches a Video Embedding (their dot product is high), they are a good match[cite: 9].
+        </div>
+      </div>
+
+      <div class="quiz-question">
+        <div class="quiz-q-text">3. Why are Vector Databases superior to standard SQL databases for finding similar videos?</div>
+        <div class="quiz-options">
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> Vector databases are entirely stateless and don't require hard drives.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">B</span> They use JSON document structures which are natively understood by Neural Networks.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">C</span> They utilize specialized Hierarchical algorithms (like HNSW) to calculate nearest neighbor distances blazingly fast in multi-dimensional space, avoiding full table scans[cite: 10].</button>
+        </div>
+        <div class="quiz-explanation" id="exp-3">
+          &#10003; <strong>Hierarchical algorithms.</strong> Standard databases require O(N) linear scans to compare multi-dimensional floats. Vector DBs use HNSW to traverse graphs and find nearest neighbors much faster[cite: 10].
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <div class="container">
+    <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 24px; font-size: 14px; color: var(--text-muted); display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 18px;">💡</span>
+      <div>
+        <strong style="color: var(--text);">Senior Engineer Joke:</strong> Why do backend developers hate going outside? <br>
+        <span style="font-family: monospace; color: var(--accent);">Because the sunlight introduces too many unhandled edge cases and they can't scale past the front door. 💀</span>
+      </div>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <a href="../index.html" style="display: inline-flex; align-items: center; gap: 6px; color: var(--accent); text-decoration: none; font-weight: 600; font-size: 14px;">&#8592; Home</a>
+      <div style="text-align: right; color: var(--text-muted); font-size: 13px; font-weight: 500;">
+        System Design — Visual &amp; Interactive Notes • Module: Real Systems
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+// --- Light Mode Vector Simulator Logic ---
+const space = document.getElementById('vector-space');
+const out = document.getElementById('sim-output');
+const ring = document.getElementById('search-ring');
+let points = [];
+
+// Seed the space with clusters based on user notes[cite: 9]
+const clusters = [
+  { type: 'cat', color: '#f59e0b', count: 22, cx: 75, cy: 25, spread: 18 },
+  { type: 'dog', color: '#3b82f6', count: 22, cx: 65, cy: 45, spread: 18 },
+  { type: 'chess', color: '#ef4444', count: 18, cx: 20, cy: 75, spread: 22 }
+];
+
+clusters.forEach(c => {
+  for(let i=0; i<c.count; i++) {
+    // Normal distribution approximation
+    const u = 1 - Math.random(); 
+    const v = Math.random();
+    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    
+    let x = c.cx + (z * c.spread / 2);
+    let y = c.cy + ((Math.random() - 0.5) * c.spread);
+    
+    // Clamp
+    x = Math.max(5, Math.min(95, x));
+    y = Math.max(5, Math.min(95, y));
+
+    const pt = document.createElement('div');
+    pt.className = `data-point ${c.type}`;
+    pt.style.left = `${x}%`;
+    pt.style.top = `${y}%`;
+    
+    const lbl = document.createElement('div');
+    lbl.className = 'point-label';
+    lbl.textContent = `[${(x/10).toFixed(1)}, ${(y/10).toFixed(1)}]`;
+    
+    space.appendChild(pt);
+    space.appendChild(lbl);
+    
+    points.push({ el: pt, x: x, y: y, type: c.type });
+  }
+});
+
+let targetPt = null;
+
+space.addEventListener('click', (e) => {
+  if (e.target.classList.contains('point-label')) return;
+  
+  const rect = space.getBoundingClientRect();
+  const px = e.clientX - rect.left;
+  const py = e.clientY - rect.top;
+  
+  const pctX = (px / rect.width) * 100;
+  const pctY = (py / rect.height) * 100;
+
+  // Clean up old
+  if (targetPt) targetPt.remove();
+  points.forEach(p => p.el.classList.remove('highlighted'));
+  
+  // Create Target
+  targetPt = document.createElement('div');
+  targetPt.className = 'data-point target';
+  targetPt.style.left = `${pctX}%`;
+  targetPt.style.top = `${pctY}%`;
+  space.appendChild(targetPt);
+
+  // Position Ring
+  ring.style.left = `${pctX}%`;
+  ring.style.top = `${pctY}%`;
+  ring.style.width = '0px';
+  ring.style.height = '0px';
+  ring.classList.remove('active');
+
+  // Calculate Distances (Euclidean)
+  points.forEach(p => {
+    p.dist = Math.sqrt(Math.pow(p.x - pctX, 2) + Math.pow(p.y - pctY, 2));
+  });
+
+  // Sort and pick top 3
+  points.sort((a, b) => a.dist - b.dist);
+  const top3 = points.slice(0, 3);
+  
+  // Animation Sequence
+  out.innerHTML = `<span style="color:#0f172a;">Executing HNSW Query at [${(pctX/10).toFixed(1)}, ${(pctY/10).toFixed(1)}]...</span>`;
+  
+  setTimeout(() => {
+    // Expand ring to furthest of top 3
+    const maxRadius = top3[2].dist * (rect.width / 100) * 2 + 20; // px
+    ring.style.width = `${maxRadius}px`;
+    ring.style.height = `${maxRadius}px`;
+    ring.classList.add('active');
+    
+    setTimeout(() => {
+      top3.forEach(p => p.el.classList.add('highlighted'));
+      
+      const res = top3.map(p => p.type).reduce((acc, curr) => {
+        acc[curr] = (acc[curr] || 0) + 1;
+        return acc;
+      }, {});
+      
+      const maj = Object.keys(res).reduce((a,b) => res[a] > res[b] ? a : b);
+      let colorMatch = maj === 'cat' ? '#f59e0b' : maj === 'dog' ? '#3b82f6' : '#ef4444';
+
+      out.innerHTML = `Found Top 3 Nearest Neighbors[cite: 10]! Primary intent match: <strong style="color:${colorMatch}; text-transform:uppercase;">${maj} Videos</strong>.`;
+    }, 400);
+  }, 200);
+});
+
+// --- Quiz Logic ---
+let quizScore = 0, questionsAnswered = 0;
+function checkAnswer(btn, isCorrect, qNum) {
+  const q = btn.closest('.quiz-question');
+  if (q.querySelector('.correct')) return;
+  questionsAnswered++;
+  q.querySelectorAll('.quiz-option').forEach(o => o.disabled = true);
+  if (isCorrect) { btn.classList.add('correct'); quizScore++; } 
+  else {
+    btn.classList.add('wrong');
+    q.querySelectorAll('.quiz-option').forEach(o => {
+      if (o.getAttribute('onclick') && o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  document.getElementById('exp-' + qNum).classList.add('show', isCorrect ? 'correct-exp' : 'wrong-exp');
+  document.getElementById('quiz-score-text').textContent = quizScore + ' / 3';
+  document.getElementById('quiz-progress-bar').style.width = (questionsAnswered / 3 * 100) + '%';
+}
+</script>
+</body>
+</html>

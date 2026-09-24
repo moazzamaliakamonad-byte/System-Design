@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System Design — Visual &amp; Interactive Notes</title>
+  <title>System Design Visual &amp; Interactive Notes</title>
   <meta name="description" content="A comprehensive, public library of interactive System Design notes. Featuring animated diagrams, live simulations, real-world case studies, and zero boring walls of text.">
   <style>
     :root {
@@ -430,10 +430,11 @@
     </div>
   </div>
 </header>
+
 <main class="container">
   <section class="hero">
     <div class="hero-badge">🚀 Interactive Architecture Curriculum</div>
-    <h1 class="hero-title">System Design, <span class="highlight">Deconstructed</span>.</h1>
+    <h1 class="hero-title">System Design, <span class="highlight">but it's Fun</span>!</h1>
     <p class="hero-subtitle">
       Self-contained, interactive HTML notes designed for clarity.
       Watch live data flow animations, experiment with transaction simulators, and learn how Netflix, Uber, and Discord scale.
@@ -442,14 +443,14 @@
     <div class="controls">
       <div class="search-box">
         <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search concepts (e.g., ACID, Cassandra, Sharding, Load Balancer)..." autocomplete="off">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search concepts (e.g., Recommendation, ACID, CAP Theorem, Sharding)..." autocomplete="off">
       </div>
       <div class="filter-pills" id="filterPills">
         <button class="filter-pill active" data-category="all">All Topics</button>
         <button class="filter-pill" data-category="fundamentals">1. Fundamentals</button>
         <button class="filter-pill" data-category="networking">2. Networking</button>
         <button class="filter-pill" data-category="databases">3. Databases &amp; Caching</button>
-        <button class="filter-pill" data-category="distributed">4. Distributed Patterns</button>
+        <button class="filter-pill" data-category="real-systems">5. Real Systems</button>
       </div>
     </div>
   </section>
@@ -483,24 +484,36 @@
         <h2 class="module-title">Fundamentals &amp; Core Concepts</h2>
       </div>
       <div class="topics-grid">
+        
+        <a href="1-fundamentals/0-prerequisites.html" class="topic-card available" data-tags="nodes clusters stateful stateless sync async memory disk prerequisites">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 10 min read</span>
+            </div>
+            <h3 class="card-title">0. Prerequisites &amp; Jargon <span class="card-arrow">→</span></h3>
+            <p class="card-desc">The absolute basics. Understand nodes, clusters, stateful vs stateless, and synchronous vs asynchronous communication before diving in.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Stateful Simulator</span>
+            <span class="card-tag">Async UI Demo</span>
+            <span class="card-tag">Glossary</span>
+          </div>
+        </a>
+
         <a href="1-fundamentals/1-Storage.html" class="topic-card available" data-tags="storage sql nosql acid base sharding replication indexing mongodb redis cassandra">
           <div class="card-top">
             <div class="card-meta">
               <span class="card-status status-live">● Available</span>
               <span class="card-time">⏱️ 20 min read</span>
             </div>
-            <h3 class="card-title">
-              1. Storage Paradigms &amp; Guarantees
-              <span class="card-arrow">→</span>
-            </h3>
-            <p class="card-desc">Relational, Document, Key-Value, Wide-Column, Graph. ACID vs. BASE, WAL transaction simulator, indexing, sharding, and real-world architectures.</p>
+            <h3 class="card-title">1. Storage Paradigms &amp; Guarantees <span class="card-arrow">→</span></h3>
+            <p class="card-desc">Relational, Document, Key-Value, Wide-Column, Graph. ACID vs. BASE, WAL transaction simulator, indexing, and real-world architectures.</p>
           </div>
           <div class="card-tags">
-            <span class="card-tag">Interactive Simulator</span>
+            <span class="card-tag">WAL Simulator</span>
             <span class="card-tag">ACID vs BASE</span>
             <span class="card-tag">PostgreSQL</span>
-            <span class="card-tag">Redis</span>
-            <span class="card-tag">Cassandra</span>
           </div>
         </a>
 
@@ -508,34 +521,97 @@
           <div class="card-top">
             <div class="card-meta">
               <span class="card-status status-live">● Available</span>
-              <span class="card-time">⏱️ ~20 min read</span>
+              <span class="card-time">⏱️ 20 min read</span>
             </div>
-            <h3 class="card-title">2. Scalability: Vertical vs. Horizontal & Sharding</h3>
+            <h3 class="card-title">2. Scalability: Vertical vs. Horizontal <span class="card-arrow">→</span></h3>
             <p class="card-desc">Vertical and horizontal scaling, stateless services, autoscaling, sharding, consistent hashing, and finding the bottleneck.</p>
           </div>
           <div class="card-tags">
             <span class="card-tag">Stateless Services</span>
             <span class="card-tag">Autoscaling</span>
-            <span class="card-tag">Bottleneck Detection</span>
-            <span class="card-tag">Consistent Hashing</span>
+            <span class="card-tag">Bottlenecks</span>
           </div>
         </a>
 
-        <div class="topic-card disabled" data-tags="latency throughput p99 p95 slas slos bandwidth">
+        <a href="1-fundamentals/3-protocols.html" class="topic-card available" data-tags="networking protocols tcp udp ip http https rest graphql grpc websockets sse real-time">
           <div class="card-top">
             <div class="card-meta">
-              <span class="card-status status-soon">Coming Soon</span>
-              <span class="card-time">⏱️ ~12 min</span>
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 25 min read</span>
             </div>
-            <h3 class="card-title">3. Latency vs. Throughput &amp; SLA Math</h3>
-            <p class="card-desc">Understanding tail latency (p95/p99), Amdahl's law, Little's law, SLA/SLO calculation, and performance budgets.</p>
+            <h3 class="card-title">3. Network Protocols &amp; APIs <span class="card-arrow">→</span></h3>
+            <p class="card-desc">How computers actually talk. TCP vs UDP handshakes, REST vs GraphQL vs gRPC tradeoffs, and real-time WebSockets vs SSE.</p>
           </div>
           <div class="card-tags">
-            <span class="card-tag">P99 Latency</span>
-            <span class="card-tag">SLOs</span>
-            <span class="card-tag">Bottlenecks</span>
+            <span class="card-tag">TCP Simulator</span>
+            <span class="card-tag">gRPC / REST</span>
+            <span class="card-tag">WebSockets</span>
           </div>
-        </div>
+        </a>
+
+        <a href="1-fundamentals/3(2nd)-LoadBalancing-Proxies.html" class="topic-card available" data-tags="load balancing forward reverse proxy l4 l7 round robin sticky sessions algorithms">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 20 min read</span>
+            </div>
+            <h3 class="card-title">4. Load Balancing &amp; Proxies <span class="card-arrow">→</span></h3>
+            <p class="card-desc">Forward vs Reverse Proxies, Layer 4 vs Layer 7 load balancing, health checks, and traffic routing algorithms like Round Robin.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Traffic Visualizer</span>
+            <span class="card-tag">L4 vs L7</span>
+            <span class="card-tag">Reverse Proxy</span>
+          </div>
+        </a>
+
+        <a href="1-fundamentals/4-Latency-Throughput.html" class="topic-card available" data-tags="latency throughput p99 p95 little's law slas slos tail amplification hardware network">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 40 min read</span>
+            </div>
+            <h3 class="card-title">5. Latency &amp; Throughput <span class="card-arrow">→</span></h3>
+            <p class="card-desc">The brutal physics of hardware limits. Understanding RAM vs SSD speeds, Little's law, and why P99 tail latency matters more than averages.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Little's Law Sim</span>
+            <span class="card-tag">P99 Percentiles</span>
+            <span class="card-tag">Fan-Out</span>
+          </div>
+        </a>
+
+        <a href="1-fundamentals/5-Fault-Tolerance.html" class="topic-card available" data-tags="fault tolerance redundancy spof active passive multi master heartbeat replica failover">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 30 min read</span>
+            </div>
+            <h3 class="card-title">6. Fault Tolerance &amp; Redundancy <span class="card-arrow">→</span></h3>
+            <p class="card-desc">Surviving node crashes. SPOFs, Active-Active vs Active-Passive redundancy, heartbeats, and automated replica promotion.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Failover Simulator</span>
+            <span class="card-tag">Master/Slave</span>
+            <span class="card-tag">Backoff Retries</span>
+          </div>
+        </a>
+
+        <a href="1-fundamentals/6-CAP-Theorem.html" class="topic-card available" data-tags="cap theorem consistency availability partition split-brain network failure cp ap">
+          <div class="card-top">
+            <div class="card-meta">
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 20 min read</span>
+            </div>
+            <h3 class="card-title">7. The CAP Theorem <span class="card-arrow">→</span></h3>
+            <p class="card-desc">The inescapable dilemma of distributed networks. Understanding the exact tradeoffs between CP vs AP datastores during a network partition.</p>
+          </div>
+          <div class="card-tags">
+            <span class="card-tag">Split-Brain Sim</span>
+            <span class="card-tag">CP vs AP</span>
+            <span class="card-tag">Network Partitions</span>
+          </div>
+        </a>
       </div>
     </div>
 
@@ -543,7 +619,7 @@
     <div class="module-group" data-module="networking">
       <div class="module-header">
         <span class="module-num">Module 02</span>
-        <h2 class="module-title">Networking, Routing &amp; Edge Delivery</h2>
+        <h2 class="module-title">Advanced Networking &amp; Edge Delivery</h2>
       </div>
       <div class="topics-grid">
         <div class="topic-card disabled" data-tags="dns authoritative recursive anycast ttl resolution">
@@ -562,29 +638,13 @@
           </div>
         </div>
 
-        <div class="topic-card disabled" data-tags="load balancing l4 l7 round robin consistent hashing reverse proxy">
-          <div class="card-top">
-            <div class="card-meta">
-              <span class="card-status status-soon">In Queue</span>
-              <span class="card-time">⏱️ ~18 min</span>
-            </div>
-            <h3 class="card-title">2. Load Balancing (L4 vs. L7)</h3>
-            <p class="card-desc">Reverse proxies, health checks, routing algorithms (Round Robin, Least Connections, Consistent Hashing), SSL termination.</p>
-          </div>
-          <div class="card-tags">
-            <span class="card-tag">L4 vs L7</span>
-            <span class="card-tag">NGINX</span>
-            <span class="card-tag">HAProxy</span>
-          </div>
-        </div>
-
         <div class="topic-card disabled" data-tags="cdn edge caching cloudflare pop cache invalidation">
           <div class="card-top">
             <div class="card-meta">
               <span class="card-status status-soon">In Queue</span>
               <span class="card-time">⏱️ ~15 min</span>
             </div>
-            <h3 class="card-title">3. CDNs &amp; Edge Caching</h3>
+            <h3 class="card-title">2. CDNs &amp; Edge Caching</h3>
             <p class="card-desc">Points of Presence (PoPs), Cache-Control headers, dynamic vs. static edge caching, and edge computing.</p>
           </div>
           <div class="card-tags">
@@ -636,44 +696,28 @@
       </div>
     </div>
 
-    <!-- Module 4: Distributed Patterns -->
-    <div class="module-group" data-module="distributed">
+    <!-- Module 5: Real Systems -->
+    <div class="module-group" data-module="real-systems">
       <div class="module-header">
-        <span class="module-num">Module 04</span>
-        <h2 class="module-title">Distributed Systems &amp; Reliability</h2>
+        <span class="module-num">Module 05</span>
+        <h2 class="module-title">Real-World Systems &amp; Case Studies</h2>
       </div>
       <div class="topics-grid">
-        <div class="topic-card disabled" data-tags="rate limiting token bucket leaky bucket sliding window 429">
+        <a href="real-systems/1-Video-Recommendation.html" class="topic-card available" data-tags="recommendation system machine learning two tower embeddings vector database hsnw candidate generation ranking">
           <div class="card-top">
             <div class="card-meta">
-              <span class="card-status status-soon">In Queue</span>
-              <span class="card-time">⏱️ ~15 min</span>
+              <span class="card-status status-live">● Available</span>
+              <span class="card-time">⏱️ 30 min read</span>
             </div>
-            <h3 class="card-title">1. Rate Limiting Strategies</h3>
-            <p class="card-desc">Token Bucket, Leaky Bucket, Fixed Window, Sliding Window Log, and Sliding Window Counter in distributed Redis clusters.</p>
+            <h3 class="card-title">1. Video Recommendation System <span class="card-arrow">→</span></h3>
+            <p class="card-desc">Design YouTube's recommendation engine. Candidate Generation funnels, Two-Tower Neural Networks, Vector Databases, HNSW, and the Cold Start problem.</p>
           </div>
           <div class="card-tags">
-            <span class="card-tag">Bucket Simulator</span>
-            <span class="card-tag">HTTP 429</span>
-            <span class="card-tag">Redis Scripts</span>
+            <span class="card-tag">Vector DB Simulator</span>
+            <span class="card-tag">Two-Tower Model</span>
+            <span class="card-tag">HNSW</span>
           </div>
-        </div>
-
-        <div class="topic-card disabled" data-tags="message queues kafka rabbitmq pub sub event driven">
-          <div class="card-top">
-            <div class="card-meta">
-              <span class="card-status status-soon">In Queue</span>
-              <span class="card-time">⏱️ ~20 min</span>
-            </div>
-            <h3 class="card-title">2. Message Queues &amp; Event Streams</h3>
-            <p class="card-desc">Queue vs. Log-based pub/sub. Kafka partitions, consumer groups, exactly-once semantics, backpressure, and DLQs.</p>
-          </div>
-          <div class="card-tags">
-            <span class="card-tag">Kafka</span>
-            <span class="card-tag">RabbitMQ</span>
-            <span class="card-tag">Idempotency</span>
-          </div>
-        </div>
+        </a>
       </div>
     </div>
 
@@ -683,7 +727,7 @@
 <footer class="footer">
   <div class="container">
     <p class="footer-text">
-      <strong>System Design — Visual &amp; Interactive Notes</strong> • Public &amp; Open Source
+      <strong>System Design Visual &amp; Interactive Notes</strong> • Public &amp; Open Source
     </p>
     <p class="footer-sub">
       Crafted with precision by <a href="https://github.com/moazzamaliakamonad-byte" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600;">Moazzam Ali</a>. Contributions welcome!

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Latency, Throughput & Performance — System Design Fundamentals</title>
-  <meta name="description" content="Master performance and numbers every software engineer must know. Covers latency vs throughput, RAM vs SSD vs HDD, queueing theory, Little's Law, and tail latency.">
+  <meta name="description" content="Master performance numbers every software engineer must know. Covers hardware limits, human-scale analogies, Little's Law, fan-out amplification, and tail percentiles.">
   <style>
     :root {
       --bg: #ffffff;
@@ -146,26 +146,37 @@
     .meme-setup { color: var(--text-muted); font-style: italic; margin-bottom: 8px; }
     .meme-punchline { color: var(--text); font-weight: 700; font-family: 'JetBrains Mono','Fira Code',monospace; font-size: 14px; background: rgba(168, 85, 247, 0.1); padding: 8px 12px; border-radius: var(--radius); display: inline-block; }
 
-    /* Cards Grid matching user notes */
+    /* Cards Grid */
     .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin: 24px 0; }
     .metric-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; }
     .metric-card.circle { border-radius: 500px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; max-width: 200px; margin: 0 auto; background: var(--bg); border-width: 2px; }
     .metric-title { font-weight: 700; font-size: 13px; color: var(--text-muted); text-transform: uppercase; }
     .metric-value { font-size: 1.7em; font-weight: 800; color: var(--accent); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
 
-    /* Latency Budget Simulator */
+    /* Human Scale Table */
+    .human-scale { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin: 24px 0; }
+    .hs-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding: 12px 0; gap: 16px; flex-wrap: wrap; }
+    .hs-row:last-child { border-bottom: none; }
+    .hs-op { flex: 2; font-weight: 600; }
+    .hs-actual { flex: 1; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); font-size: 14px; text-align: right; }
+    .hs-human { flex: 1; font-weight: 800; color: var(--accent); text-align: right; }
+
+    /* Simulators */
     .sim-container { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 32px; margin: 32px 0; }
     .budget-bar-wrap { width: 100%; height: 24px; background: var(--border); border-radius: 12px; overflow: hidden; display: flex; margin: 20px 0; }
     .budget-segment { height: 100%; transition: width 0.3s ease; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: white; overflow: hidden; white-space: nowrap; }
 
+    .ll-inputs { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .ll-input-group { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .ll-input-group label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .ll-input-group input { padding: 12px; border: 2px solid var(--border); border-radius: var(--radius); font-size: 16px; font-weight: 600; font-family: inherit; }
+    .ll-input-group input:focus { border-color: var(--accent); outline: none; }
+    .ll-result { font-size: 2em; font-weight: 800; color: var(--accent); display: flex; align-items: center; justify-content: center; background: var(--bg); border: 2px dashed var(--accent); border-radius: var(--radius); padding: 20px; text-align: center; }
+
     /* Accordion */
     .accordion { margin: 24px 0; }
     .accordion-item { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
-    .accordion-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 16px 20px; cursor: pointer; background: var(--bg);
-      transition: background 0.15s; user-select: none;
-    }
+    .accordion-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; cursor: pointer; background: var(--bg); transition: background 0.15s; user-select: none; }
     .accordion-header:hover { background: var(--bg-secondary); }
     .accordion-header h3 { margin: 0; font-size: 15px; }
     .accordion-icon { color: var(--text-muted); transition: transform 0.25s; font-size: 20px; font-weight: 300; }
@@ -181,52 +192,26 @@
     .quiz-question { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 24px; }
     .quiz-q-text { font-weight: 600; font-size: 15px; margin-bottom: 16px; }
     .quiz-options { display: flex; flex-direction: column; gap: 10px; }
-    .quiz-option {
-      display: flex; align-items: center; gap: 12px; padding: 12px 16px;
-      border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer;
-      transition: all 0.15s; background: var(--bg); font-size: 14px;
-      text-align: left; width: 100%; font-family: inherit;
-    }
+    .quiz-option { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; background: var(--bg); font-size: 14px; text-align: left; width: 100%; font-family: inherit; }
     .quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
     .quiz-option.correct { border-color: var(--success); background: var(--success-light); color: #15803d; font-weight: 600; }
     .quiz-option.wrong { border-color: var(--danger); background: var(--danger-light); color: var(--danger); }
     .quiz-option:disabled { cursor: default; }
-    .quiz-option .opt-letter {
-      width: 26px; height: 26px; border-radius: 50%;
-      background: var(--bg-secondary); border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 12px; font-weight: 700; flex-shrink: 0;
-    }
-    .quiz-explanation {
-      margin-top: 12px; padding: 12px 16px; border-radius: var(--radius);
-      font-size: 14px; display: none; line-height: 1.6;
-    }
+    .quiz-option .opt-letter { width: 26px; height: 26px; border-radius: 50%; background: var(--bg-secondary); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .quiz-explanation { margin-top: 12px; padding: 12px 16px; border-radius: var(--radius); font-size: 14px; display: none; line-height: 1.6; }
     .quiz-explanation.show { display: block; animation: fadeIn 0.3s ease; }
     .quiz-explanation.correct-exp { background: var(--success-light); color: #15803d; border-left: 3px solid var(--success); }
     .quiz-explanation.wrong-exp { background: var(--danger-light); color: #b91c1c; border-left: 3px solid var(--danger); }
 
     .page-footer { border-top: 1px solid var(--border); padding: 48px 0; }
     .footer-nav { display: flex; justify-content: space-between; margin-top: 32px; gap: 16px; }
-    .footer-nav a {
-      display: flex; align-items: center; gap: 8px; color: var(--accent);
-      text-decoration: none; font-weight: 500; font-size: 14px;
-      padding: 10px 16px; border: 1px solid var(--border);
-      border-radius: var(--radius); transition: all 0.15s;
-    }
+    .footer-nav a { display: flex; align-items: center; gap: 8px; color: var(--accent); text-decoration: none; font-weight: 500; font-size: 14px; padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.15s; }
     .footer-nav a:hover { background: var(--accent-light); border-color: var(--accent); }
-    .scroll-top {
-      position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px;
-      background: var(--accent); color: white; border-radius: 50%; border: none;
-      cursor: pointer; font-size: 18px; display: none; align-items: center;
-      justify-content: center; box-shadow: var(--shadow-md); transition: all 0.2s; z-index: 50;
-    }
+    .scroll-top { position: fixed; bottom: 24px; right: 24px; width: 40px; height: 40px; background: var(--accent); color: white; border-radius: 50%; border: none; cursor: pointer; font-size: 18px; display: none; align-items: center; justify-content: center; box-shadow: var(--shadow-md); transition: all 0.2s; z-index: 50; }
     .scroll-top.visible { display: flex; }
     .scroll-top:hover { transform: translateY(-2px); background: #1d4ed8; }
 
-    @media (max-width: 640px) {
-      h1 { font-size: 2em; }
-      .footer-nav { flex-direction: column; }
-    }
+    @media (max-width: 640px) { h1 { font-size: 2em; } .footer-nav { flex-direction: column; } .hs-row { flex-direction: column; align-items: flex-start; gap: 4px; } .hs-actual, .hs-human { text-align: left; } }
   </style>
 </head>
 <body>
@@ -244,12 +229,12 @@
   <div class="container">
     <div class="badges">
       <span class="badge badge-topic">Fundamentals</span>
-      <span class="badge badge-beginner">Comprehensive Masterclass</span>
-      <span class="badge badge-time">&#9201; ~30 min read</span>
+      <span class="badge badge-beginner">Deep Dive Masterclass</span>
+      <span class="badge badge-time">&#9201; ~40 min read</span>
     </div>
     <h1>Latency, Throughput & Performance</h1>
     <p class="page-subtitle">
-      The absolute numbers every software engineer must memorize. Physics sets the immutable rules of the universe, and software architecture is entirely about respecting the clock cycles of memory, storage, and cross-continental network hops.
+      Why does your code feel slow? Software engineers often obsess over algorithmic micro-optimizations while completely ignoring the brutal physical laws of memory speeds, storage reads, and transcontinental network hops. Let's fix that.
     </p>
   </div>
 </header>
@@ -257,21 +242,21 @@
 <div class="container">
   <div class="meme-box">
     <div class="meme-label">&#128269; LOOKS INSIDE</div>
-    <div class="meme-setup">Looks inside an enterprise software app where a single button click triggers 6 sequential synchronous database queries over a cross-region network hop.</div>
-    <div class="meme-punchline">"Why does loading the dashboard take 800ms?" -10,000 aura. 💀</div>
+    <div class="meme-setup">Looks inside an enterprise application where a single button click triggers 6 sequential, unindexed database queries over a cross-region network hop.</div>
+    <div class="meme-punchline">"Why does loading the dashboard take 4 seconds?" -10,000 aura. 💀</div>
   </div>
 
   <nav class="toc">
     <h3>&#128203; On this page</h3>
     <ol>
-      <li><a href="#hardware">Hardware Latency: RAM vs SSD vs HDD</a></li>
-      <li><a href="#network">Network Latency: Same Region vs Cross-Region</a></li>
-      <li><a href="#math">Queueing Theory & Little's Law (L = &lambda; &times; W)</a></li>
-      <li><a href="#tail">Tail Latency & Fan-Out Amplification</a></li>
-      <li><a href="#calculator">Interactive Latency Budget Simulator</a></li>
-      <li><a href="#throughput">Latency vs Throughput (The Highway Analogy)</a></li>
-      <li><a href="#code">Python Code: Benchmarking Latency & Percentiles</a></li>
-      <li><a href="#quiz">Quiz &#129514;</a></li>
+      <li><a href="#hardware">1. Hardware Latency: The "Human Scale" Analogy</a></li>
+      <li><a href="#network">2. Network Physics (Propagation vs Serialization)</a></li>
+      <li><a href="#math">3. Little's Law (The Starbucks Barista Simulator)</a></li>
+      <li><a href="#tail">4. Tail Latency & The Choir Problem (P99)</a></li>
+      <li><a href="#throughput">5. Latency vs Throughput (The Station Wagon Analogy)</a></li>
+      <li><a href="#calculator">6. Interactive Latency Budget Builder</a></li>
+      <li><a href="#code">7. Python Code: Benchmarking Percentiles</a></li>
+      <li><a href="#quiz">8. Quiz &#129514;</a></li>
     </ol>
   </nav>
 </div>
@@ -279,28 +264,42 @@
 <!-- SECTION 1: HARDWARE LATENCY -->
 <section id="hardware">
   <div class="container">
-    <p class="section-label">Hardware Speeds</p>
-    <h2>Memory and Storage Latency Hierarchy</h2>
-    <p>When designing high-performance systems, understanding where your data lives dictates your application's speed ceiling. Fetching data from disk instead of RAM introduces orders-of-magnitude delays.</p>
+    <p class="section-label">Mind-Blowing Scale</p>
+    <h2>1. The Hardware Latency Hierarchy</h2>
+    <p>Humans are terrible at comprehending nanoseconds. To understand why caching is the most important concept in system design, we need to translate computer time into human time.</p>
+    <p>Imagine <strong>1 CPU cycle (0.3ns) equals 1 second of human time</strong>. Here is what your code feels like to the processor:</p>
 
-    <div class="metric-grid">
-      <div class="metric-card circle">
-        <div class="metric-title">RAM Lookup</div>
-        <div class="metric-value">100ns</div>
+    <div class="human-scale">
+      <div class="hs-row">
+        <div class="hs-op">L1 Cache Reference (CPU onboard)</div>
+        <div class="hs-actual">0.5 ns</div>
+        <div class="hs-human">1 Heartbeat (1-2 secs)</div>
       </div>
-      <div class="metric-card circle">
-        <div class="metric-title">SSD Read</div>
-        <div class="metric-value">.1–.2ms</div>
+      <div class="hs-row">
+        <div class="hs-op">Main Memory Reference (RAM)</div>
+        <div class="hs-actual">100 ns</div>
+        <div class="hs-human">3 Minutes (Making coffee)</div>
       </div>
-      <div class="metric-card circle">
-        <div class="metric-title">HDD Read</div>
-        <div class="metric-value">1–2ms</div>
+      <div class="hs-row">
+        <div class="hs-op">Solid State Drive Read (SSD)</div>
+        <div class="hs-actual">150,000 ns</div>
+        <div class="hs-human">5.7 Days (A long vacation)</div>
+      </div>
+      <div class="hs-row">
+        <div class="hs-op">Hard Disk Drive Read (HDD)</div>
+        <div class="hs-actual">10,000,000 ns</div>
+        <div class="hs-human">12 Months (A full year!)</div>
+      </div>
+      <div class="hs-row">
+        <div class="hs-op" style="color:var(--danger);">Send packet CA to Europe & Back</div>
+        <div class="hs-actual">150,000,000 ns</div>
+        <div class="hs-human" style="color:var(--danger);">15 Years</div>
       </div>
     </div>
 
     <div class="callout warning">
       <span class="callout-icon">&#9888;&#65039;</span>
-      <div><strong>The Orders of Magnitude Gap:</strong> 1 millisecond (ms) equals <em>1,000,000 nanoseconds (ns)</em>. Fetching data from a spinning Hard Disk Drive (HDD) is roughly <strong>20,000 times slower</strong> than reading it from RAM. This physical constraint is the exact reason why caching layers like Redis and Memcached are mandatory in large-scale system design.</div>
+      <div><strong>The System Design Lesson:</strong> If your web server has to read a user's profile from a spinning Hard Drive (HDD) for every single HTTP request, it is the equivalent of making your CPU wait an entire calendar year for a single piece of paper. <strong>This is why we put Redis (RAM caching) in front of Databases.</strong></div>
     </div>
   </div>
 </section>
@@ -309,26 +308,25 @@
 <section id="network">
   <div class="container">
     <p class="section-label">Network Physics</p>
-    <h2>Same-Region vs. Cross-Region Hops</h2>
-    <p>Storage is fast; traveling across the earth's fiber optic cables is strictly limited by the speed of light in glass (~200,000 km/s). Network topology is often the most stubborn bottleneck in cloud architecture.</p>
+    <h2>2. Network Physics: Propagation vs Serialization</h2>
+    <p>When data travels across the internet, the delay is split into two distinct physical limitations:</p>
+
+    <ul style="padding-left: 20px; margin-bottom: 24px;">
+      <li><strong>Propagation Delay (Distance):</strong> Data travels through fiber optic cables as light. Light in glass travels at roughly <code>200,000 km per second</code> (about 30% slower than in a vacuum). You cannot beat this speed. A cross-country trip (e.g., US-East to US-West) will <em>always</em> take ~50ms minimum, purely due to the curvature of the earth.</li>
+      <li><strong>Serialization/Transmission Delay (Size):</strong> The time it takes for a router to physically push all the bits of your payload onto the wire. A 10MB JSON payload takes much longer to serialize onto the wire than a 10KB Protocol Buffer.</li>
+    </ul>
 
     <div class="metric-grid">
       <div class="metric-card">
-        <div class="metric-title">Same Region / AZ</div>
+        <div class="metric-title">Same Region / AZ Hop</div>
         <div class="metric-value" style="color:var(--success);">1 – 10 ms</div>
-        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">Data centers located in the same geographic availability zone cluster.</p>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">Microservices talking to each other in the same AWS region (e.g. <code>us-east-1a</code> to <code>us-east-1b</code>).</p>
       </div>
       <div class="metric-card">
-        <div class="metric-title">Cross-Region (e.g. US-East to West)</div>
-        <div class="metric-value" style="color:var(--danger);">~50 ms</div>
-        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">Transcontinental fiber optic round-trip time limitation.</p>
+        <div class="metric-title">Cross-Region Hop</div>
+        <div class="metric-value" style="color:var(--danger);">~50 - 100 ms</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">Transcontinental fiber optic limits. Don't do synchronous DB reads across regions!</p>
       </div>
-    </div>
-
-    <div class="meme-box" style="margin-top:24px;">
-      <div class="meme-label">&#128640; SPEED OF LIGHT LIMITATION</div>
-      <div class="meme-setup">Junior dev asking why a database sync between Virginia (`us-east-1`) and Oregon (`us-west-2`) takes 60ms.</div>
-      <div class="meme-punchline">Albert Einstein: "Bro, photons can only move so fast through glass fiber." 📉</div>
     </div>
   </div>
 </section>
@@ -336,22 +334,45 @@
 <!-- SECTION 3: QUEUEING THEORY & LITTLE'S LAW -->
 <section id="math">
   <div class="container">
-    <p class="section-label">System Design Mathematics</p>
-    <h2>Queueing Theory & Little's Law</h2>
-    <p>In high-throughput environments, performance degradation isn't just about single-request speed—it’s about queueing. This is mathematically governed by <strong>Little's Law</strong>:</p>
+    <p class="section-label">The Math of Bottlenecks</p>
+    <h2>3. Little's Law & The Starbucks Simulator</h2>
+    <p>In high-throughput systems, performance doesn't degrade linearly; it hits a wall and collapses. This is governed by <strong>Little's Law</strong>.</p>
 
     <div class="callout info" style="font-size: 1.2em; justify-content: center; text-align: center; font-family: 'JetBrains Mono', monospace; font-weight: 700;">
       <div>L = &lambda; &times; W</div>
     </div>
 
-    <p>Where:</p>
+    <p><strong>The Starbucks Analogy:</strong></p>
     <ul style="padding-left: 20px; margin-bottom: 24px;">
-      <li><strong>L (Items in System):</strong> The average number of requests currently being processed or waiting in queue.</li>
-      <li><strong>&lambda; (Arrival Rate):</strong> The rate at which incoming requests arrive per second.</li>
-      <li><strong>W (Wait Time / Latency):</strong> The average time a request spends in the system.</li>
+      <li><strong>&lambda; (Lambda / Arrival Rate):</strong> Customers entering the shop per minute.</li>
+      <li><strong>W (Wait Time):</strong> How long it takes a barista to make one coffee.</li>
+      <li><strong>L (Items in System):</strong> The total number of people standing around inside the shop (The Queue).</li>
     </ul>
 
-    <p><strong>The Takeaway:</strong> As your system approaches saturation (&lambda; increases close to maximum capacity), wait time (W) does not increase linearly—it explodes exponentially because requests begin piling up in backlog queues.</p>
+    <p>If customers arrive faster than the barista can make coffee, <strong>L</strong> (the queue length) grows toward infinity. In software, this means your server runs out of RAM holding open connections, and it crashes.</p>
+
+    <div class="sim-container" style="background: white;">
+      <h3 style="margin-bottom:16px;">☕ Interactive Little's Law Calculator</h3>
+      <p style="font-size:14px; color:var(--text-muted); margin-bottom: 20px;">Adjust the arrival rate and processing time to see how many concurrent connections your server will hold.</p>
+      
+      <div class="ll-inputs">
+        <div class="ll-input-group">
+          <label>Arrival Rate (&lambda;) - Req/Sec</label>
+          <input type="number" id="ll-lambda" value="100" oninput="calcLittle()">
+        </div>
+        <div class="ll-input-group">
+          <label>Wait Time (W) - Seconds</label>
+          <input type="number" id="ll-w" value="0.5" step="0.1" oninput="calcLittle()">
+        </div>
+      </div>
+      
+      <div class="ll-result">
+        <div>
+          <span id="ll-l">50.0</span> 
+          <span style="font-size: 14px; font-weight: 600; color:var(--text); display:block; text-transform:uppercase; margin-top:8px;">Concurrent Requests in System (L)</span>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -359,41 +380,69 @@
 <section id="tail">
   <div class="container">
     <p class="section-label">Reliability Engineering</p>
-    <h2>Tail Latency & Fan-Out Amplification</h2>
-    <p>When measuring system performance, looking at <em>average</em> latency is a trap. You must measure percentiles: **P95, P99, and P99.9**.</p>
+    <h2>4. Tail Latency & The Choir Problem (P99)</h2>
+    <p>Looking at "Average" latency is a trap. If 99 users load your site in 10ms, but 1 user takes 5,000ms, the <em>average</em> is ~60ms. It looks fine on a dashboard, but 1% of your users are furious.</p>
+    <p>We measure performance in percentiles: <strong>P50 (Median), P95, and P99</strong>. P99 means "99% of requests are faster than this number."</p>
 
     <div class="accordion">
       <div class="accordion-item" onclick="toggleAccordion(this)">
         <div class="accordion-header">
-          <h3>&#128200; The Fan-Out Problem (Why P99 Matters)</h3>
+          <h3>&#127908; The "Choir" Analogy for Fan-Out Amplification</h3>
           <span class="accordion-icon">+</span>
         </div>
         <div class="accordion-body"><div class="accordion-body-inner">
-          <p>Imagine a frontend service that fans out a single user request to <strong>100 downstream microservices</strong> in parallel. If each individual service has a 99% reliability/speed success rate (P99 = 10ms), what is the overall success rate of the parent request?</p>
-          <p style="margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-weight: 600;">Probability = 0.99^100 &approx; 36.6%</p>
-          <p style="margin-top: 12px;">This means **over 63% of user requests will experience a latency spike or failure** because they are bottlenecked by the single slowest sub-request! This is why large systems implement hedging requests, timeouts, and fallback caches.</p>
+          <p>Imagine a choir with 100 singers. Each singer is 99% reliable (meaning they have a 1% chance of coughing during a song). What are the chances the choir gets through a song with <strong>zero</strong> coughing?</p>
+          <p style="margin: 12px 0; font-family: 'JetBrains Mono', monospace; font-weight: 600; text-align: center; font-size: 1.1em; color: var(--accent);">0.99^100 = 36.6%</p>
+          <p>This means the choir will have a coughing interruption <strong>63.4% of the time!</strong></p>
+          <p><strong>System Design Application:</strong> If your frontend calls an API Gateway, and that gateway "fans out" the request to 100 internal microservices to gather data... even if every microservice boasts an incredible P99 latency of 10ms, the parent request will be delayed by a slow sub-service over 60% of the time! You are bound by the slowest link.</p>
         </div></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- SECTION 5: LATENCY BUDGET SIMULATOR -->
+<!-- SECTION 5: THROUGHPUT VS LATENCY -->
+<section id="throughput">
+  <div class="container">
+    <p class="section-label">Core Definitions</p>
+    <h2>5. Latency vs. Throughput</h2>
+    <p>These terms are often used interchangeably by beginners, but they describe entirely different dimensions of performance.</p>
+    
+    <div class="callout info">
+      <span class="callout-icon">&#128641;</span>
+      <div>
+        <strong>Latency:</strong> How long a <em>single</em> request takes from start to finish (Duration / Milliseconds). <br><br>
+        <strong>Throughput:</strong> How much volume the system can handle <em>simultaneously</em> (Capacity / Requests per Second).
+      </div>
+    </div>
+
+    <h3>The Water Pipe Analogy</h3>
+    <p>Latency is the length of the pipe (how long it takes one drop of water to reach the other side). Throughput is the width of the pipe (how many gallons pour out per minute). You can have a very short, thin pipe (low latency, low throughput) or a very long, massive pipe (high latency, high throughput).</p>
+
+    <div class="meme-box">
+      <div class="meme-label">&#128666; THE SNEAKERNET PARADOX</div>
+      <div class="meme-setup">Never underestimate the bandwidth of a station wagon full of hard drives hurtling down the highway.</div>
+      <div class="meme-punchline">If you fill a car with 100 Terabytes of hard drives and drive it from NY to LA, the <strong>Latency</strong> is terrible (4 days). But the <strong>Throughput</strong> is massive (~300 Megabytes per second)! AWS literally offers this as a service called "AWS Snowmobile" (an 18-wheeler truck full of servers).</div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 6: LATENCY BUDGET SIMULATOR -->
 <section id="calculator">
   <div class="container">
-    <p class="section-label">Interactive Simulator</p>
-    <h2>The Latency Budget Calculator</h2>
-    <p>Users expect web applications to respond in under <strong>200ms</strong>. Assemble your request path below and see if you bust the latency budget.</p>
+    <p class="section-label">Architecture Planning</p>
+    <h2>6. Interactive Latency Budget Builder</h2>
+    <p>In a system design interview, your interviewer will give you a "Latency Budget" (e.g., "The API must respond in under 200ms"). Assemble your request path below and see if your architecture survives.</p>
 
     <div class="sim-container">
-      <h3 style="margin-bottom:16px;">&#9201; Request Pipeline Builder</h3>
+      <h3 style="margin-bottom:16px;">&#9201; Request Pipeline</h3>
       
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:20px;">
-        <button class="btn btn-secondary" onclick="addStep('Client-Proxy', 5)">+ Edge Proxy (5ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('TLS Handshake', 30)">+ TLS Handshake (30ms)</button>
         <button class="btn btn-secondary" onclick="addStep('RAM Cache', 1)">+ Redis Cache (1ms)</button>
         <button class="btn btn-secondary" onclick="addStep('Same-Region DB', 10)">+ Local DB Query (10ms)</button>
-        <button class="btn btn-secondary" onclick="addStep('Cross-Region DB', 50)">+ Cross-Region DB (50ms)</button>
-        <button class="btn btn-secondary" onclick="addStep('External API', 120)">+ Third-Party API (120ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('Cross-Region Sync', 60)">+ Cross-Region DB Sync (60ms)</button>
+        <button class="btn btn-secondary" onclick="addStep('3rd Party Stripe API', 150)">+ Stripe API Call (150ms)</button>
       </div>
 
       <div style="display:flex; justify-content:space-between; font-weight:700; font-size:14px;">
@@ -413,32 +462,12 @@
   </div>
 </section>
 
-<!-- SECTION 6: THROUGHPUT VS LATENCY -->
-<section id="throughput">
-  <div class="container">
-    <p class="section-label">Theory</p>
-    <h2>Latency vs. Throughput</h2>
-    <p>People often confuse these two terms, but they measure completely different properties of a computing system:</p>
-    
-    <div class="callout info">
-      <span class="callout-icon">&#128641;</span>
-      <div>
-        <strong>Latency:</strong> How long a <em>single</em> request takes from start to finish (measured in milliseconds). 
-        <br><br>
-        <strong>Throughput:</strong> How many requests your system can process <em>simultaneously</em> per second (measured in requests per second).
-      </div>
-    </div>
-
-    <p><strong>The Highway Analogy:</strong> Latency is the speed limit (how fast one car gets from City A to City B). Throughput is the number of lanes on the highway (how many cars can travel simultaneously). You can have low latency (a fast sports car) but low throughput (a one-lane dirt road), or high latency (a massive cargo ship) with extreme overall throughput!</p>
-  </div>
-</section>
-
 <!-- SECTION 7: CODE -->
 <section id="code">
   <div class="container">
     <p class="section-label">Show Me the Code</p>
-    <h2>Python Latency Benchmarker</h2>
-    <p>A production-ready Python utility to measure execution latency and track tail percentiles (p95, p99) for microservice monitoring.</p>
+    <h2>7. Python Tail Latency Benchmarker</h2>
+    <p>A production-ready Python utility demonstrating how site reliability engineers (SREs) measure execution latency and track tail percentiles (p95, p99) instead of averages.</p>
 
     <div class="code-block">
       <div class="code-header"><span class="code-lang">Python</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
@@ -448,10 +477,14 @@
 <span class="tok-kw">import</span> random
 
 <span class="tok-kw">def</span> <span class="tok-fn">simulate_db_call</span>():
-    <span class="tok-cmt"># Simulate network / disk latency variance</span>
-    time.<span class="tok-fn">sleep</span>(random.<span class="tok-fn">uniform</span>(<span class="tok-num">0.005</span>, <span class="tok-num">0.035</span>))
+    <span class="tok-cmt"># 99% of calls are fast (5ms to 15ms)</span>
+    <span class="tok-cmt"># 1% of calls hit a slow HDD sector / GC pause (500ms)</span>
+    <span class="tok-kw">if</span> random.<span class="tok-fn">random</span>() > <span class="tok-num">0.99</span>:
+        time.<span class="tok-fn">sleep</span>(<span class="tok-num">0.500</span>) 
+    <span class="tok-kw">else</span>:
+        time.<span class="tok-fn">sleep</span>(random.<span class="tok-fn">uniform</span>(<span class="tok-num">0.005</span>, <span class="tok-num">0.015</span>))
 
-<span class="tok-kw">def</span> <span class="tok-fn">benchmark</span>(iterations=<span class="tok-num">200</span>):
+<span class="tok-kw">def</span> <span class="tok-fn">benchmark</span>(iterations=<span class="tok-num">500</span>):
     latencies = []
     <span class="tok-kw">for</span> _ <span class="tok-kw">in</span> <span class="tok-cls">range</span>(iterations):
         start = time.<span class="tok-fn">perf_counter</span>()
@@ -459,12 +492,14 @@
         duration_ms = (time.<span class="tok-fn">perf_counter</span>() - start) * <span class="tok-num">1000</span>
         latencies.<span class="tok-fn">append</span>(duration_ms)
 
+    <span class="tok-cmt"># Calculate percentiles</span>
+    p50 = statistics.<span class="tok-fn">median</span>(latencies)
     p95 = statistics.<span class="tok-fn">quantiles</span>(latencies, n=<span class="tok-num">20</span>)[<span class="tok-num">18</span>]
     p99 = statistics.<span class="tok-fn">quantiles</span>(latencies, n=<span class="tok-num">100</span>)[<span class="tok-num">98</span>]
 
     <span class="tok-fn">print</span>(<span class="tok-str">f"Average Latency: {statistics.mean(latencies):.2f} ms"</span>)
-    <span class="tok-fn">print</span>(<span class="tok-str">f"P95 Latency: {p95:.2f} ms"</span>)
-    <span class="tok-fn">print</span>(<span class="tok-str">f"P99 Latency: {p99:.2f} ms"</span>)
+    <span class="tok-fn">print</span>(<span class="tok-str">f"Median (P50):    {p50:.2f} ms"</span>)
+    <span class="tok-fn">print</span>(<span class="tok-str">f"P99 Tail:        {p99:.2f} ms"</span>)
 
 <span class="tok-kw">if</span> __name__ == <span class="tok-str">"__main__"</span>:
     <span class="tok-fn">benchmark</span>()</pre>
@@ -476,7 +511,7 @@
 <section id="quiz">
   <div class="container">
     <p class="section-label">Test Yourself</p>
-    <h2>Quiz Time &#129514;</h2>
+    <h2>8. Quiz Time &#129514;</h2>
 
     <div class="quiz-progress">
       <span id="quiz-score-text" class="quiz-score-display">0 / 4</span>
@@ -493,31 +528,31 @@
           <button class="quiz-option" onclick="checkAnswer(this,true,1)"><span class="opt-letter">C</span> About 20,000 times slower</button>
         </div>
         <div class="quiz-explanation" id="exp-1">
-          &#10003; <strong>20,000x slower.</strong> RAM takes ~100ns, while an HDD takes ~1-2ms (1,000,000+ ns). This massive gap is why caching layers are vital.
+          &#10003; <strong>20,000x slower.</strong> At human scale, RAM takes 3 minutes, while an HDD takes 12 months. This massive physical gap is why caching layers are vital.
         </div>
       </div>
 
       <div class="quiz-question">
-        <div class="quiz-q-text">2. According to Little's Law (L = &lambda; &times; W), what happens to wait time (W) when arrival rate (&lambda;) approaches system saturation limits?</div>
+        <div class="quiz-q-text">2. According to Little's Law, what happens to Wait Time (W) when the Arrival Rate (&lambda;) approaches the system's maximum processing capacity?</div>
         <div class="quiz-options">
           <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">A</span> Wait time drops to zero.</button>
           <button class="quiz-option" onclick="checkAnswer(this,true,2)"><span class="opt-letter">B</span> Wait time increases exponentially as backlogs pile up in queues.</button>
           <button class="quiz-option" onclick="checkAnswer(this,false,2)"><span class="opt-letter">C</span> Wait time remains strictly linear.</button>
         </div>
         <div class="quiz-explanation" id="exp-2">
-          &#10003; <strong>Exponential queueing growth.</strong> As saturation hits, requests back up in queues, causing latency to spike drastically.
+          &#10003; <strong>Exponential queueing growth.</strong> Just like the Starbucks line, if customers arrive faster than coffee is made, the line length (and wait time) grows toward infinity until the system crashes.
         </div>
       </div>
 
       <div class="quiz-question">
-        <div class="quiz-q-text">3. Why do system architects care about P99 tail latency instead of just looking at Average latency?</div>
+        <div class="quiz-q-text">3. Why do system architects obsess over P99 Tail Latency instead of Average Latency?</div>
         <div class="quiz-options">
-          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> Average latency is illegal to report.</button>
-          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">B</span> Average latency hides painful outliers and tail-end spikes experienced by real users.</button>
-          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">C</span> P99 is always zero.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">A</span> Average latency is difficult to calculate in SQL.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,3)"><span class="opt-letter">B</span> Average latency hides painful outliers and tail-end spikes. Furthermore, due to Fan-Out amplification, that 1% spike can affect over 60% of parent requests.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,false,3)"><span class="opt-letter">C</span> P99 always looks better to investors.</button>
         </div>
         <div class="quiz-explanation" id="exp-3">
-          &#10003; <strong>Hiding outliers.</strong> Averages smooth out severe performance degradation affecting a minority of requests. P99 exposes those outliers.
+          &#10003; <strong>Hiding outliers.</strong> Averages smooth out severe performance degradation affecting a minority of requests. P99 exposes the reality of your slowest, most frustrated users.
         </div>
       </div>
 
@@ -525,11 +560,11 @@
         <div class="quiz-q-text">4. What is the fundamental difference between Latency and Throughput?</div>
         <div class="quiz-options">
           <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">A</span> Latency measures bandwidth while throughput measures time.</button>
-          <button class="quiz-option" onclick="checkAnswer(this,true,4)"><span class="opt-letter">B</span> Latency is the time a single request takes; throughput is the number of requests handled per second.</button>
+          <button class="quiz-option" onclick="checkAnswer(this,true,4)"><span class="opt-letter">B</span> Latency is the time a single request takes (duration); throughput is the volume of requests handled per second (capacity).</button>
           <button class="quiz-option" onclick="checkAnswer(this,false,4)"><span class="opt-letter">C</span> They are identical terms.</button>
         </div>
         <div class="quiz-explanation" id="exp-4">
-          &#10003; <strong>Time vs Volume.</strong> Latency is duration (ms), while throughput is capacity (req/sec).
+          &#10003; <strong>Duration vs Capacity.</strong> The speed limit on the highway (Latency) vs the number of lanes on the highway (Throughput).
         </div>
       </div>
     </div>
@@ -544,7 +579,7 @@
 <footer class="page-footer">
   <div class="container">
     <div class="meme-box" style="text-align:center;">
-      <div class="meme-label" style="justify-content:center;">&#128187; END OF FUNDAMENTALS</div>
+      <div class="meme-label" style="justify-content:center;">&#128187; Fundamentals is the key</div>
       <div class="meme-setup">Me optimizing a loop from O(N) to O(1) to save 0.001ms while our unindexed database query takes 450ms:</div>
       <div class="meme-punchline" style="margin-top:8px;">"Performance engineer mastermind." 🧠</div>
     </div>
@@ -577,6 +612,16 @@ function toggleAccordion(item) {
     body.style.maxHeight = '0';
   }
 }
+
+// --- Little's Law Calculator ---
+function calcLittle() {
+  const lambda = parseFloat(document.getElementById('ll-lambda').value) || 0;
+  const w = parseFloat(document.getElementById('ll-w').value) || 0;
+  const result = lambda * w;
+  document.getElementById('ll-l').textContent = result.toFixed(1);
+}
+// Init on load
+document.addEventListener('DOMContentLoaded', calcLittle);
 
 // --- Latency Budget Simulator ---
 let pipelineSteps = [];
